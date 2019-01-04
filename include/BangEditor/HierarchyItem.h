@@ -1,55 +1,60 @@
 #ifndef HIERARCHYITEM_H
 #define HIERARCHYITEM_H
 
-#include "Bang/UIList.h"
-#include "Bang/GameObject.h"
-#include "Bang/IEventEmitter.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsName.h"
+#include "Bang/ITreeItem.h"
+#include "Bang/String.h"
+#include "Bang/UIList.h"
+#include "BangEditor/BangEditor.h"
+#include "BangEditor/IEventsHierarchyItem.h"
 #include "BangEditor/UIContextMenu.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UITree;
-FORWARD class UILabel;
-FORWARD NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class HierarchyItem;
-
-class IHierarchyItemListener : public virtual IEventListener
+namespace Bang
 {
-    EVENTLISTENER(IHierarchyItemListener)
+class IEventsName;
+class Object;
+class UIFocusable;
+class UIDragDroppable;
+class UILabel;
+class UITextRenderer;
+class UITree;
+}
 
-public:
-    virtual void OnCreateEmpty(HierarchyItem *item) = 0;
-    virtual void OnRename(HierarchyItem *item) = 0;
-    virtual void OnRemove(HierarchyItem *item) = 0;
-    virtual void OnCopy(HierarchyItem *item) = 0;
-    virtual void OnCut(HierarchyItem *item) = 0;
-    virtual void OnPaste(HierarchyItem *item) = 0;
-    virtual void OnDuplicate(HierarchyItem *item) = 0;
-    virtual void OnCreatePrefab(HierarchyItem *item) = 0;
-};
+using namespace Bang;
+namespace BangEditor
+{
+class IEventsHierarchyItem;
+class MenuItem;
+class UIContextMenu;
 
 class HierarchyItem : public GameObject,
-                      public INameListener,
-                      public EventEmitter<IHierarchyItemListener>
+                      public ITreeItem,
+                      public EventListener<IEventsName>,
+                      public EventListener<IEventsFocus>,
+                      public EventEmitter<IEventsHierarchyItem>
 {
     GAMEOBJECT_EDITOR(HierarchyItem);
 
 public:
     HierarchyItem();
-    virtual ~HierarchyItem();
+    virtual ~HierarchyItem() override;
 
     // GameObject
-    void OnStart() override;
     void Update() override;
 
     void SetReferencedGameObject(GameObject *referencedGameObject);
-    GameObject *GetReferencedGameObject() const;
 
-    void CreateEmpty();
     void Rename();
     void Remove();
     void Copy();
@@ -58,28 +63,43 @@ public:
     void Duplicate();
     void CreatePrefab();
 
-    // INameListener
-    void OnNameChanged(GameObject *go, const String &oldName,
+    void UpdateEnabledDisabledColor();
+
+    UIFocusable *GetFocusable() const;
+    GameObject *GetReferencedGameObject() const;
+
+    // IEventsObject
+    void OnEnabled(Object *obj) override;
+    void OnDisabled(Object *obj) override;
+
+    // IEventsName
+    void OnNameChanged(GameObject *go,
+                       const String &oldName,
                        const String &newName) override;
 
     // UIContextMenu callback
     void OnCreateContextMenu(MenuItem *menuRootItem);
 
+    // ITreeItem
+    virtual UIFocusable *GetTreeItemFocusable() override;
+
     // UIList Item
     void OnSelectionCallback(UIList::Action action);
+
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
     String ToString() const override;
 
 private:
-    String m_text = "";
+    UIFocusable *p_focusable = nullptr;
     GameObject *p_refGameObject = nullptr;
     UIContextMenu *p_contextMenu = nullptr;
     UITextRenderer *p_textRenderer = nullptr;
 
     void SetText(const String &text);
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // HIERARCHYITEM_H
-
+#endif  // HIERARCHYITEM_H

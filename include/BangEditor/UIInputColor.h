@@ -1,52 +1,65 @@
 #ifndef UIINPUTCOLOR_H
 #define UIINPUTCOLOR_H
 
-#include "Bang/Vector4.h"
-#include "Bang/GameObject.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IValueChangedListener.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Color.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/String.h"
+#include "Bang/Vector4.h"
 #include "BangEditor/BangEditor.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UIButton;
-FORWARD class UIImageRenderer;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class IEventsValueChanged;
+class UIButton;
+class UIImageRenderer;
+}
 
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class UIInputVector;
+using namespace Bang;
+namespace BangEditor
+{
+class ColorPickerReporter;
+class UIInputVector;
 
 class UIInputColor : public GameObject,
-                     public IValueChangedListener,
-                     public EventEmitter<IValueChangedListener>
+                     public EventListener<IEventsValueChanged>,
+                     public EventEmitter<IEventsValueChanged>
 {
     GAMEOBJECT_EDITOR(UIInputColor);
 
 public:
+    UIInputColor();
+
     void SetColor(const Color &color);
 
-    const Color& GetColor() const;
+    const Color &GetColor() const;
     bool HasFocus() const;
 
 protected:
-	UIInputColor();
-    virtual ~UIInputColor();
+    virtual ~UIInputColor() override;
 
-    // IValueChangedListener
-    void OnValueChanged(Object *object) override;
+    // GameObject
+    void Update() override;
+
+    // IEventsValueChanged
+    void OnValueChanged(EventEmitter<IEventsValueChanged> *object) override;
 
 private:
-    Color m_color = Color::Zero;
+    Color m_color = Color::Zero();
+    ColorPickerReporter *m_colorPickerReporter = nullptr;
 
     UIImageRenderer *p_colorImage = nullptr;
+    UIImageRenderer *p_bgCheckerboardImage = nullptr;
     UIButton *p_searchColorButton = nullptr;
-    UIInputVector *p_colorInputVector = nullptr;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // UIINPUTCOLOR_H
-
+#endif  // UIINPUTCOLOR_H

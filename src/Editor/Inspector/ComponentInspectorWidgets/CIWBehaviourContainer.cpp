@@ -1,19 +1,48 @@
 #include "BangEditor/CIWBehaviourContainer.h"
 
-#include "Bang/UIButton.h"
-#include "Bang/Extensions.h"
-#include "Bang/UITextRenderer.h"
+#include <functional>
+#include <vector>
+
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangPreprocessor.h"
 #include "Bang/BehaviourContainer.h"
-
-#include "BangEditor/EditorPaths.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.tcc"
+#include "Bang/Extensions.h"
+#include "Bang/GameObject.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/GameObjectFactory.h"
+#include "Bang/IEvents.h"
+#include "Bang/Map.h"
+#include "Bang/Map.tcc"
+#include "Bang/MetaNode.h"
+#include "Bang/Path.h"
+#include "Bang/ReflectStruct.h"
+#include "Bang/ReflectVariable.h"
+#include "Bang/UIButton.h"
+#include "Bang/UILabel.h"
+#include "Bang/UITextRenderer.h"
+#include "BangEditor/CIWBehaviour.h"
+#include "BangEditor/EditorFileTracker.h"
 #include "BangEditor/UIInputFile.h"
-#include "BangEditor/EditorBehaviourManager.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+namespace Bang
+{
+class IEventsValueChanged;
+}
 
-CIWBehaviourContainer::CIWBehaviourContainer() {}
-CIWBehaviourContainer::~CIWBehaviourContainer() {}
+using namespace Bang;
+using namespace BangEditor;
+
+CIWBehaviourContainer::CIWBehaviourContainer()
+{
+}
+
+CIWBehaviourContainer::~CIWBehaviourContainer()
+{
+}
 
 void CIWBehaviourContainer::InitInnerWidgets()
 {
@@ -22,34 +51,103 @@ void CIWBehaviourContainer::InitInnerWidgets()
     SetName("CIWBehaviourContainer");
     SetTitle("Behaviour");
 
-    p_sourceInputFile = GameObject::Create<UIInputFile>();
+    p_sourceInputFile = new UIInputFile();
     p_sourceInputFile->SetExtensions(Extensions::GetSourceFileExtensions());
-    p_sourceInputFile->EventEmitter<IValueChangedListener>::RegisterListener(this);
-    AddWidget("Source", p_sourceInputFile);
+    p_sourceInputFile->EventEmitter<IEventsValueChanged>::RegisterListener(
+        this);
+    p_sourceInputFile->SetZoomable(false);
 
-    SetLabelsWidth(60);
+    p_resetValuesButton = GameObjectFactory::CreateUIButton("Reset values");
+    p_resetValuesButton->AddClickedCallback([this]() {
+        GetBehaviourContainer()->ResetInitializationModificationsMetaNode();
+    });
+
+    AddWidget("Source", p_sourceInputFile);
+    AddWidget(p_resetValuesButton->GetGameObject());
+    AddWidget(GameObjectFactory::CreateUIHSeparator(), 10);
+
+    SetLabelsWidth(80);
+}
+
+void CIWBehaviourContainer::UpdateModifiedInitializationMetaFromWidget(
+    GameObject *widget)
+{
+    MetaNode widgetMeta = GetMetaFromWidget(widget);
+    GetBehaviourContainer()->GetIntializationModificationMetaPtr()->Import(
+        widgetMeta.ToString());
+}
+
+void CIWBehaviourContainer::OnComponentSet()
+{
+    ComponentInspectorWidget::OnComponentSet();
+
+    MetaNode modifiedInitMeta =
+        GetBehaviourContainer()->GetInitializationModificationsMeta();
+
+    ComponentInspectorWidget::OnComponentSet();
+    UpdateWidgetsContentFromMeta(modifiedInitMeta);
+}
+
+ReflectStruct CIWBehaviourContainer::GetReflectableReflectStruct() const
+{
+    return GetBehaviourContainer()->GetBehaviourReflectStruct();
 }
 
 void CIWBehaviourContainer::UpdateFromReference()
 {
-    ComponentInspectorWidget::UpdateFromReference();
-
-    const Path &srcPath = GetBehaviourContainer()->GetSourceFilepath();
+    Path srcPath = GetBehaviourContainer()->GetSourceFilepath();
     if (srcPath.IsFile())
     {
         SetTitle(srcPath.GetName());
         p_sourceInputFile->SetPath(srcPath);
     }
+    GetBehaviourContainer()->UpdateInformationFromHeaderIfNeeded();
+
+    ComponentInspectorWidget::UpdateFromReference();
+
+    MetaNode initMeta = GetBehaviourContainer()->GetInitializationMeta();
+    UpdateWidgetsContentFromMeta(initMeta);
+
+    MetaNode initializationModificationMeta =
+        GetBehaviourContainer()->GetInitializationModificationsMeta();
+    for (const auto &pair : GetWidgetToLabel())
+    {
+        if (UILabel *label = pair.second)
+        {
+            String labelStr = label->GetText()->GetContent();
+            bool isModified = initializationModificationMeta.Contains(labelStr);
+            Color labelColor = Color::Black();
+            if (initMeta.Contains(labelStr))
+            {
+                labelColor = (isModified ? Color::Black() : Color::Blue());
+            }
+            label->GetText()->SetTextColor(labelColor);
+        }
+    }
 }
 
-void CIWBehaviourContainer::OnValueChanged(Object *object)
+void CIWBehaviourContainer::OnValueChangedCIW(
+    EventEmitter<IEventsValueChanged> *object)
 {
-    ComponentInspectorWidget::OnValueChanged(object);
+    ComponentInspectorWidget::OnValueChangedCIW(object);
 
-    GetBehaviourContainer()->SetSourceFilepath( p_sourceInputFile->GetPath() );
+    GetBehaviourContainer()->SetSourceFilepath(p_sourceInputFile->GetPath());
+    GameObject *go = DCAST<GameObject *>(object);
+    if (!go)
+    {
+        if (Component *comp = DCAST<Component *>(object))
+        {
+            go = comp->GetGameObject();
+        }
+    }
+
+    if (go)
+    {
+        UpdateModifiedInitializationMetaFromWidget(go);
+    }
 }
 
 BehaviourContainer *CIWBehaviourContainer::GetBehaviourContainer() const
 {
-    return SCAST<BehaviourContainer*>( GetComponent() );
+    return SCAST<BehaviourContainer *>(GetComponent());
 }

@@ -2,50 +2,62 @@
 #define CIWCAMERA_H
 
 #include "Bang/Bang.h"
-
+#include "Bang/BangDefines.h"
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/ComponentInspectorWidget.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UISlider;
-FORWARD class UIComboBox;
-FORWARD class UIInputNumber;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class Camera;
+class IEventsValueChanged;
+class UICheckBox;
+class UIComboBox;
+class UIInputNumber;
+class UISlider;
+template <class>
+class EventEmitter;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class UIInputColor;
+using namespace Bang;
+namespace BangEditor
+{
+class UIInputColor;
+class UIInputFile;
 
 class CIWCamera : public ComponentInspectorWidget
 {
     GAMEOBJECT_EDITOR(CIWCamera);
 
 public:
+    CIWCamera() = default;
+
     // InspectorWidget
     virtual void InitInnerWidgets() override;
     virtual void UpdateFromReference() override;
 
 protected:
-    CIWCamera() = default;
-    virtual ~CIWCamera() = default;
+    virtual ~CIWCamera() override = default;
 
     Camera *GetCamera() const;
 
-    // IValueChangedListener
     void LimitValues();
-    virtual void OnValueChanged(Object *object) override;
+
+    // ComponentInspectorWidget
+    virtual void OnValueChangedCIW(
+        EventEmitter<IEventsValueChanged> *object) override;
 
 private:
-    UIInputColor *p_clearColorInput = nullptr;
     UIInputNumber *p_zNearInput = nullptr;
     UIInputNumber *p_zFarInput = nullptr;
     UIInputNumber *p_orthoHeightInput = nullptr;
-    UISlider      *p_fovInput = nullptr;
+    UISlider *p_fovInput = nullptr;
     UIComboBox *p_projectionModeInput = nullptr;
-
+    UIComboBox *p_clearModeInput = nullptr;
+    UICheckBox *p_isActiveCamera = nullptr;
+    UIInputColor *p_clearColorInput = nullptr;
+    UIInputFile *p_textureCubeMapInput = nullptr;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // CIWCAMERA_H
-
+#endif  // CIWCAMERA_H

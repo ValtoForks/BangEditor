@@ -5,19 +5,17 @@
 
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class NotSelectableInEditor : public Component
 {
-    COMPONENT(NotSelectableInEditor)
+    COMPONENT_WITHOUT_CLASS_ID(NotSelectableInEditor)
 
 private:
     NotSelectableInEditor() = default;
-    virtual ~NotSelectableInEditor() = default;
+    virtual ~NotSelectableInEditor() override = default;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // NOTSELECTABLEINEDITOR_H
-
+#endif  // NOTSELECTABLEINEDITOR_H

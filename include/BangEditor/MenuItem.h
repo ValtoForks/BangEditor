@@ -1,34 +1,49 @@
 #ifndef MENUITEM_H
 #define MENUITEM_H
 
+#include <sys/types.h>
+#include <functional>
+
+#include "Bang/BangDefines.h"
+#include "Bang/GameObject.h"
+#include "Bang/List.h"
+#include "Bang/String.h"
+#include "Bang/UIList.h"
 #include "BangEditor/BangEditor.h"
 
-#include "Bang/UIList.h"
-#include "Bang/GameObject.h"
+namespace Bang
+{
+class IFocusable;
+class UIFocusable;
+class UIImageRenderer;
+class UIList;
+class UITextRenderer;
+}
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UIList;
-FORWARD class IFocusable;
-FORWARD class UIFocusable;
-FORWARD class UITextRenderer;
-FORWARD NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class MenuItem : public GameObject
 {
     GAMEOBJECT(MenuItem);
 
 public:
-    enum class MenuItemType { Root, Top, Normal };
+    enum class MenuItemType
+    {
+        ROOT,
+        TOP,
+        NORMAL,
+        SEPARATOR
+    };
+
+    MenuItem(MenuItemType itemType = MenuItemType::NORMAL);
 
     // GameObject
     void Update() override;
 
     void AddSeparator();
     void AddItem(MenuItem *childItem);
-    MenuItem* AddItem(const String &text);
+    MenuItem *AddItem(const String &text);
 
     void Close(bool recursiveUp);
     void SetForceShow(bool forceShow);
@@ -44,21 +59,21 @@ public:
     UIFocusable *GetFocusable() const;
     MenuItemType GetItemType() const;
     bool GetDestroyOnClose() const;
-    float GetFontSize() const;
+    uint GetFontSize() const;
     bool IsForcedShow() const;
     MenuItem *GetParentItem() const;
-    const List<MenuItem*>& GetChildrenItems() const;
+    const List<MenuItem *> &GetChildrenItems() const;
 
     bool MustDisplayChildren() const;
     void SetFontSize(uint fontSize);
     void SetDestroyOnClose(bool destroyOnSelect);
 
     using ItemSelectedCallback = std::function<void(MenuItem *selectedItem)>;
-    void SetSelectedCallback(ItemSelectedCallback selectedCallback);
+    void SetSelectedCallback(
+        std::function<void(MenuItem *selectedItem)> selectedCallback);
 
 protected:
-    MenuItem(MenuItemType itemType = MenuItemType::Normal);
-    virtual ~MenuItem();
+    virtual ~MenuItem() override;
 
 private:
     ItemSelectedCallback m_selectedCallback;
@@ -74,16 +89,18 @@ private:
     UIFocusable *p_focusable = nullptr;
     UITextRenderer *p_text = nullptr;
 
-    List<MenuItem*> p_childrenItems;
-    MenuItem* p_parentItem = nullptr;
+    List<MenuItem *> p_childrenItems;
+    MenuItem *p_parentItem = nullptr;
     UIList *p_childrenList = nullptr;
     UIImageRenderer *p_topBg = nullptr;
     UIImageRenderer *p_rightArrow = nullptr;
 
+    MenuItem *GetTopOrRootItem() const;
     bool IsSelected() const;
-    static void OnListSelectionCallback(GameObject *item, UIList::Action action);
+    void AdjustToBeInsideScreen();
+    static void OnListSelectionCallback(GameObject *item,
+                                        UIList::Action action);
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // MENUITEM_H
+#endif  // MENUITEM_H

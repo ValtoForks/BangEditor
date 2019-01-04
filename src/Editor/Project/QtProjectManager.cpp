@@ -1,23 +1,23 @@
 #include "BangEditor/QtProjectManager.h"
 
-#include "Bang/List.h"
 #include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/File.h"
+#include "Bang/List.h"
+#include "Bang/List.tcc"
 #include "Bang/Paths.h"
-#include "Bang/Debug.h"
+#include "Bang/String.h"
 #include "Bang/SystemUtils.h"
+#include "Bang/Thread.h"
+#include "BangEditor/EditorProject.h"
+#include "BangEditor/EditorProjectManager.h"
 
-#include "BangEditor/Project.h"
-#include "BangEditor/ProjectManager.h"
-#include "BangEditor/EditorWindow.h"
-
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 Path QtProjectManager::GetQtProjectDir()
 {
-    Project *p_proj = ProjectManager::GetCurrentProject();
-    if (!p_proj) { return Path::Empty; }
-    return p_proj->GetProjectDirectory().Append("Project");
+    return Paths::GetProjectDir().Append("QtProject");
 }
 
 Path QtProjectManager::GetQtProjectFilepath()
@@ -45,61 +45,65 @@ bool QtProjectManager::IsQtCreatorOpenedCurrentProject()
 
 void QtProjectManager::CreateQtProjectFile()
 {
-    Project *p_proj = ProjectManager::GetCurrentProject();
+    Project *p_proj = EditorProjectManager::GetInstance()->GetCurrentProject();
     Path projectDir = p_proj->GetProjectDirectory();
-    const Path &engineDir = Paths::GetEngineDir(); (void)(engineDir);
-    const Path &projAssetsDir = projectDir.Append("Assets"); (void)(projAssetsDir);
-/*
-    List<String> headers =
-            projAssetsDir.GetFiles(true, {"h"}).To<List, String>();
-    List<String> engineHeaders =
-            engineDir.GetFiles(true, {"h"}).To<List, String>();
-    List<String> sources =
-            projAssetsDir.GetFiles(true, {"cpp"}).To<List, String>();
-    List<String> engineSources =
-            engineDir.GetFiles(true, {"cpp"}).To<List, String>();
-    List<String> projIncPaths =
-            projAssetsDir.GetSubDirectories(true).To<List, String>();
+    const Path &engineIncludeDir = Paths::GetEngineIncludeDir();
+    const Path &projAssetsDir = projectDir.Append("Assets");
+    Array<String> headers =
+        projAssetsDir.GetFiles(true, {"h"}).To<Array, String>();
+    Array<String> engineHeaders =
+        engineIncludeDir.GetFiles(true, {"h"}).To<Array, String>();
+    Array<String> sources =
+        projAssetsDir.GetFiles(true, {"cpp"}).To<Array, String>();
+    Array<String> engineSources =
+        engineIncludeDir.GetFiles(true, {"cpp"}).To<Array, String>();
+    Array<String> projIncPaths =
+        projAssetsDir.GetSubDirectories(true).To<Array, String>();
 
-    List<Path> engineIncPaths = { Paths::Engine().Append("include") };
-    List<String> engineIncPathsStr = engineIncPaths.To<List, String>();
+    Array<Path> engineIncPaths = Paths::GetEngineIncludeDirs();
+    Array<String> engineIncPathsStr = engineIncPaths.To<Array, String>();
 
-    String headersString            = String::Join(headers,           "\n");
-    String engineHeadersString      = String::Join(engineHeaders,     "\n");
-    String sourcesString            = String::Join(sources,           "\n");
-    String engineSourcesString      = String::Join(engineSources,     "\n");
-    String projIncludePathsString   = String::Join(projIncPaths,      "\n");
+    String headersString = String::Join(headers, "\n");
+    String engineHeadersString = String::Join(engineHeaders, "\n");
+    String sourcesString = String::Join(sources, "\n");
+    String engineSourcesString = String::Join(engineSources, "\n");
+    String projIncludePathsString = String::Join(projIncPaths, "\n");
     String engineIncludePathsString = String::Join(engineIncPathsStr, "\n");
 
     Path qtProjDir = QtProjectManager::GetQtProjectDir();
-    File::CreateDirectory(qtProjDir);
+    File::CreateDir(qtProjDir);
     File::Write(qtProjDir.Append(".files"),
-                headersString       + "\n" +
-                sourcesString       + "\n" +
-                engineHeadersString + "\n" +
-                engineSourcesString);
+                headersString + "\n" + sourcesString + "\n" +
+                    engineHeadersString + "\n" + engineSourcesString);
 
     File::Write(qtProjDir.Append(".includes"),
-                projIncludePathsString + "\n" +
-                engineIncludePathsString);
+                projIncludePathsString + "\n" + engineIncludePathsString);
 
     File::Write(qtProjDir.Append(".creator"), "[General]");
     File::Write(qtProjDir.Append(".config"), "");
-    */
 }
 
 void QtProjectManager::OpenBehaviourInQtCreator(const Path &behFilepath)
 {
     bool alreadyOpened = QtProjectManager::IsQtCreatorOpenedCurrentProject();
-    List<String> args = {};
-    if (alreadyOpened) { args.PushBack("-client"); }
-    //else
+    Array<String> args;
+    if (alreadyOpened)
+    {
+        args.PushBack("-client");
+    }
+    // else
     {
         Path qtProjFilepath = QtProjectManager::GetQtProjectFilepath();
         args.PushBack(qtProjFilepath.GetAbsolute());
     }
     args.PushBack(behFilepath.GetAbsolute());
-    SystemUtils::System("qtcreator", args);
+
+    Thread *runBGThread = new Thread();
+    runBGThread->SetRunnable(new ThreadRunnableLambda([args]() {
+        SystemUtils::System("qtcreator", args, nullptr, nullptr);
+    }));
+    runBGThread->Start();
+    runBGThread->Detach();
 }
 
 QtProjectManager::QtProjectManager()

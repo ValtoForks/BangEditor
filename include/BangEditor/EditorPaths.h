@@ -1,21 +1,25 @@
 #ifndef EDITORPATHS_H
 #define EDITORPATHS_H
 
+#include "Bang/BangDefines.h"
+#include "Bang/List.h"
+#include "Bang/Path.h"
 #include "Bang/Paths.h"
-
+#include "Bang/String.h"
 #include "BangEditor/BangEditor.h"
 
-#define EDPATH(path) BangEditor::EditorPaths::CreateEditorPath(path)  // Engine assets path
+#define EDPATH(path) \
+    BangEditor::EditorPaths::CreateEditorPath(path)  // Engine assets path
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class EditorPaths : public Paths
 {
 public:
     void InitEditorPath(const Path &editorRootPath);
 
-    static const Path& GetEditorDir();
+    static const Path &GetEditorDir();
     static Path GetEditorAssetsDir();
     static Path GetEditorBinariesDir();
     static Path GetEditorLibrariesDir();
@@ -28,17 +32,15 @@ public:
     static Path CreateEditorPath(const String &path);
 
 private:
-    Path c_editorRoot  = Path::Empty;
+    Path m_editorRootPath = Path::Empty();
 
     EditorPaths();
-    virtual ~EditorPaths();
+    virtual ~EditorPaths() override;
 
-    static EditorPaths* GetInstance();
+    static EditorPaths *GetInstance();
 
     friend class EditorApplication;
 };
+}  // namespace BangEditor
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORPATHS_H
-
+#endif  // EDITORPATHS_H

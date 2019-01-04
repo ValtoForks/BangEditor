@@ -1,39 +1,42 @@
 #ifndef EDITORSETTINGS_H
 #define EDITORSETTINGS_H
 
-#include "Bang/Path.h"
 #include "Bang/Array.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Path.h"
+#include "Bang/Settings.h"
 
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-class EditorSettings
+using namespace Bang;
+namespace BangEditor
+{
+class EditorSettings : public Settings
 {
 public:
+    void SetRecentProjectFilepathsOpen(
+        const Array<Path> &recentProjectFilepathsOpen);
+    void AddRecentProjectFilepathOpen(const Path &recentProjectFilepathOpen);
+    const Array<Path> &GetRecentProjectFilepathsOpen();
 
-    static void AddRecentProjectFilepathOpen(const Path &recentProjectFilePathOpen);
-    static const Array<Path>& GetRecentProjectFilepathsOpen();
+    static EditorSettings *GetInstance();
 
 private:
     Array<Path> m_recentProjectFilesOpen;
 
     EditorSettings();
-    virtual ~EditorSettings();
+    virtual ~EditorSettings() override;
 
-    void Init();
+    void Init() override;
     void ExportToFile();
     void ImportFromFile();
     static Path GetEditorSettingsPath();
 
-    static EditorSettings* GetInstance();
-
     friend class Editor;
     friend class EditorScene;
+    friend class EditorApplication;
+    friend class EditorProjectManager;
 };
+}  // namespace BangEditor
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORSETTINGS_H
-
+#endif  // EDITORSETTINGS_H

@@ -1,14 +1,15 @@
 #ifndef QTPROJECTMANAGER_H
 #define QTPROJECTMANAGER_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/Path.h"
 #include "Bang/String.h"
-
+#include "Bang/ThreadPool.h"
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class QtProjectManager
 {
 public:
@@ -23,7 +24,6 @@ private:
     static Path GetQtProjectDir();
     static bool IsQtCreatorOpenedCurrentProject();
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // QTPROJECTMANAGER_H
+#endif  // QTPROJECTMANAGER_H

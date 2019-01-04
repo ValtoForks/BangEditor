@@ -1,62 +1,84 @@
 #include "BangEditor/EditorSceneManager.h"
 
-#include "Bang/Time.h"
-#include "Bang/Debug.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/IEventsSceneManager.h"
 #include "Bang/Scene.h"
-#include "Bang/Camera.h"
-#include "Bang/GEngine.h"
-#include "Bang/AudioManager.h"
-#include "Bang/UILayoutManager.h"
-
-#include "BangEditor/Editor.h"
-#include "BangEditor/EditorScene.h"
 #include "BangEditor/EditorBehaviourManager.h"
+#include "BangEditor/EditorScene.h"
+#include "BangEditor/ScenePlayer.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+namespace Bang
+{
+class BehaviourManager;
+class Path;
+}
+
+using namespace Bang;
+using namespace BangEditor;
 
 EditorSceneManager::EditorSceneManager()
 {
-    EventEmitter<ISceneManagerListener>::RegisterListener(this);
+    EventEmitter<IEventsSceneManager>::RegisterListener(this);
 }
 
 EditorSceneManager::~EditorSceneManager()
 {
-    if (GetOpenScene()) { GameObject::Destroy( GetOpenScene() ); }
-    if (GetEditorScene()) { GameObject::Destroy( GetEditorScene() ); }
+    if (GetOpenScene())
+    {
+        GameObject::Destroy(GetOpenScene());
+    }
+
+    if (GetEditorScene())
+    {
+        GameObject::Destroy(GetEditorScene());
+    }
 }
 
 Scene *EditorSceneManager::GetOpenScene()
 {
     EditorSceneManager *esm = EditorSceneManager::GetActive();
-    return esm ? esm->_GetOpenScene() : nullptr;
+    return esm ? esm->GetOpenScene_() : nullptr;
 }
 
 EditorScene *EditorSceneManager::GetEditorScene()
 {
     EditorSceneManager *esm = EditorSceneManager::GetActive();
-    return esm ? esm->_GetEditorScene() : nullptr;
+    return esm ? esm->GetEditorScene_() : nullptr;
 }
 
-EditorBehaviourManager* EditorSceneManager::GetEditorBehaviourManager() const
+EditorBehaviourManager *EditorSceneManager::GetEditorBehaviourManager() const
 {
-    return DCAST<EditorBehaviourManager*>( SceneManager::GetBehaviourManager() );
+    return DCAST<EditorBehaviourManager *>(SceneManager::GetBehaviourManager());
 }
 
-Scene *EditorSceneManager::_GetOpenScene() const
+Scene *EditorSceneManager::GetOpenScene_() const
 {
     EditorScene *edScene = GetEditorScene();
     return edScene ? edScene->GetOpenScene() : nullptr;
 }
 
-EditorScene *EditorSceneManager::_GetEditorScene() const
+EditorScene *EditorSceneManager::GetEditorScene_() const
 {
     return p_editorScene;
 }
 
+Scene *EditorSceneManager::GetObjectPtrLookupScene_() const
+{
+    if (Editor::IsEditingScene())
+    {
+        return GetOpenScene();
+    }
+    else
+    {
+        return ScenePlayer::GetInstance()->GetPlayOpenScene();
+    }
+}
+
 void EditorSceneManager::SetActiveScene(Scene *activeScene)
 {
-    GetActive()->SetActiveScene_(activeScene);
+    EditorSceneManager::GetActive()->SetActiveScene_(activeScene);
 }
 
 BehaviourManager *EditorSceneManager::CreateBehaviourManager() const
@@ -66,18 +88,19 @@ BehaviourManager *EditorSceneManager::CreateBehaviourManager() const
 
 void EditorSceneManager::OnSceneLoaded(Scene *scene, const Path &sceneFilepath)
 {
-    if (_GetEditorScene())
+    BANG_UNUSED_2(scene, sceneFilepath);
+    if (GetEditorScene_())
     {
-        _GetEditorScene()->SetOpenScene( GetLoadedScene() );
+        GetEditorScene_()->SetOpenScene(GetLoadedScene());
     }
-    else // Retrieve editor scene
+    else  // Retrieve editor scene
     {
-        p_editorScene = SCAST<EditorScene*>( GetLoadedScene() );
+        p_editorScene = DCAST<EditorScene *>(GetLoadedScene());
     }
 }
 
 EditorSceneManager *EditorSceneManager::GetActive()
 {
     SceneManager *sm = SceneManager::GetActive();
-    return sm ? Cast<EditorSceneManager*>(sm) : nullptr;
+    return sm ? DCAST<EditorSceneManager *>(sm) : nullptr;
 }

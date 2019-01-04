@@ -1,77 +1,100 @@
 #ifndef UICONTEXTMENU_H
 #define UICONTEXTMENU_H
 
-#include "Bang/Component.h"
-#include "Bang/GameObject.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IEventListener.h"
+#include <functional>
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/MenuItem.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class IEventsDestroy;
+class UIFocusable;
+template <class>
+class EventEmitter;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class ContextMenu;
+using namespace Bang;
+namespace BangEditor
+{
+class ContextMenu;
+class MenuItem;
 
 class UIContextMenu : public Component,
-                      public IDestroyListener
+                      public EventListener<IEventsFocus>,
+                      public EventListener<IEventsDestroy>
 {
-    COMPONENT(UIContextMenu)
+    COMPONENT_WITHOUT_CLASS_ID(UIContextMenu)
 
 public:
-    UIContextMenu() = default;
-    virtual ~UIContextMenu() = default;
-
-    // Component
-    void OnUpdate() override;
+    UIContextMenu();
+    virtual ~UIContextMenu() override = default;
 
     void ShowMenu();
     bool IsMenuBeingShown() const;
-    void AddButtonPart(GameObject *part);
+    void SetFocusable(UIFocusable *focusable);
 
-    using CreateContextMenuCallback = std::function<void(MenuItem *menuRootItem)>;
-    void SetCreateContextMenuCallback(CreateContextMenuCallback createCallback);
+    using CreateContextMenuCallback =
+        std::function<void(MenuItem *menuRootItem)>;
+    void SetCreateContextMenuCallback(
+        std::function<void(MenuItem *)> createCallback);
 
 private:
-    List<GameObject*> m_parts;
     ContextMenu *p_menu = nullptr;
 
     CreateContextMenuCallback m_createContextMenuCallback;
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
-};
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
+};
 
 // ContextMenu
 class ContextMenu : public GameObject,
-             public IDestroyListener
+                    public EventListener<IEventsDestroy>,
+                    public EventListener<IEventsFocus>
 {
     GAMEOBJECT_EDITOR(ContextMenu);
 
 public:
+    ContextMenu();
 
     // GameObject
     void Update() override;
 
     MenuItem *GetRootItem() const;
-
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    UIFocusable *GetFocusable() const;
 
 private:
-    MenuItem *p_rootItem = nullptr;
     bool m_justCreated = false;
+    MenuItem *p_rootItem = nullptr;
+    UIFocusable *p_focusable = nullptr;
 
-    ContextMenu();
-    virtual ~ContextMenu() = default;
+    virtual ~ContextMenu() override = default;
 
-    void AdjustToBeInsideScreen();
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
+
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // UICONTEXTMENU_H
-
+#endif  // UICONTEXTMENU_H

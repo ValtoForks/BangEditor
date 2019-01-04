@@ -5,19 +5,17 @@
 
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class HideInHierarchy : public Component
 {
-    COMPONENT(HideInHierarchy)
+    COMPONENT_WITHOUT_CLASS_ID(HideInHierarchy)
 
-private:
+public:
     HideInHierarchy() = default;
-    virtual ~HideInHierarchy() = default;
+    virtual ~HideInHierarchy() override = default;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // HIDEINHIERARCHY_H
-
+#endif  // HIDEINHIERARCHY_H

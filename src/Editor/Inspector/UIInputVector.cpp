@@ -1,19 +1,20 @@
 #include "BangEditor/UIInputVector.h"
 
+#include "Bang/Assert.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.tcc"
+#include "Bang/GameObjectFactory.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/UIHorizontalLayout.h"
+#include "Bang/UIInputNumber.h"
+#include "Bang/UIInputText.h"
+#include "Bang/UILayoutElement.h"
 #include "Bang/Vector2.h"
 #include "Bang/Vector3.h"
 #include "Bang/Vector4.h"
-#include "Bang/UILabel.h"
-#include "Bang/UICanvas.h"
-#include "Bang/UIInputText.h"
-#include "Bang/UIInputNumber.h"
-#include "Bang/UITextRenderer.h"
-#include "Bang/UILayoutElement.h"
-#include "Bang/GameObjectFactory.h"
-#include "Bang/UIHorizontalLayout.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 UIInputVector::UIInputVector()
 {
@@ -25,16 +26,17 @@ UIInputVector::UIInputVector()
     hl->SetSpacing(5);
 
     UILayoutElement *le = AddComponent<UILayoutElement>();
-    le->SetFlexibleSize( Vector2::One );
+    le->SetFlexibleSize(Vector2::One());
 
-    m_inputNumbers.PushBack( GameObjectFactory::CreateUIInputNumber() );
-    m_inputNumbers.PushBack( GameObjectFactory::CreateUIInputNumber() );
-    m_inputNumbers.PushBack( GameObjectFactory::CreateUIInputNumber() );
-    m_inputNumbers.PushBack( GameObjectFactory::CreateUIInputNumber() );
+    m_inputNumbers.PushBack(GameObjectFactory::CreateUIInputNumber());
+    m_inputNumbers.PushBack(GameObjectFactory::CreateUIInputNumber());
+    m_inputNumbers.PushBack(GameObjectFactory::CreateUIInputNumber());
+    m_inputNumbers.PushBack(GameObjectFactory::CreateUIInputNumber());
 
     for (int i = 0; i < 4; ++i)
     {
-        m_inputNumbers[i]->EventEmitter<IValueChangedListener>::RegisterListener(this);
+        m_inputNumbers[i]->EventEmitter<IEventsValueChanged>::RegisterListener(
+            this);
     }
 
     m_inputNumbers[0]->GetGameObject()->SetParent(this);
@@ -55,27 +57,76 @@ UIInputVector::~UIInputVector()
 void UIInputVector::SetSize(int size)
 {
     ASSERT(size >= 1 && size <= 4);
+    m_size = size;
     for (int i = 0; i < 4; ++i)
     {
-        m_inputNumbers[i]->GetGameObject()->SetEnabled( i < size );
+        m_inputNumbers[i]->GetGameObject()->SetEnabled(i < size);
     }
 }
 
 void UIInputVector::Set(const Vector2 &v)
 {
-    for (int i = 0; i < 2; ++i) { Set(i, v[i]); }
+    for (int i = 0; i < 2; ++i)
+    {
+        Set(i, v[i]);
+    }
 }
 void UIInputVector::Set(const Vector3 &v)
 {
-    for (int i = 0; i < 3; ++i) { Set(i, v[i]); }
+    for (int i = 0; i < 3; ++i)
+    {
+        Set(i, v[i]);
+    }
 }
 void UIInputVector::Set(const Vector4 &v)
 {
-    for (int i = 0; i < 4; ++i) { Set(i, v[i]); }
+    for (int i = 0; i < 4; ++i)
+    {
+        Set(i, v[i]);
+    }
 }
 void UIInputVector::Set(int i, float v)
 {
     m_inputNumbers[i]->SetValue(v);
+}
+
+void UIInputVector::SetBlocked(bool blocked)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        m_inputNumbers[i]->SetBlocked(blocked);
+    }
+}
+
+void UIInputVector::SetStep(const Vector4 &step)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        GetInputNumbers()[i]->SetStep(step[i]);
+    }
+}
+
+void UIInputVector::SetMinValue(const Vector4 &minValue)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        GetInputNumbers()[i]->SetMinValue(minValue[i]);
+    }
+}
+
+void UIInputVector::SetMaxValue(const Vector4 &maxValue)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        GetInputNumbers()[i]->SetMaxValue(maxValue[i]);
+    }
+}
+
+void UIInputVector::SetMinMaxValues(const Vector4 &minValue,
+                                    const Vector4 &maxValue)
+{
+    SetMinValue(minValue);
+    SetMaxValue(maxValue);
 }
 
 float UIInputVector::Get(int i) const
@@ -96,6 +147,21 @@ Vector4 UIInputVector::GetVector4() const
     return Vector4(Get(0), Get(1), Get(2), Get(3));
 }
 
+Vector4 UIInputVector::GetStep() const
+{
+    Vector4 step;
+    for (uint i = 0; i < 4; ++i)
+    {
+        step[i] = m_inputNumbers[i]->GetStep();
+    }
+    return step;
+}
+
+int UIInputVector::GetSize() const
+{
+    return m_size;
+}
+
 const Array<UIInputNumber *> UIInputVector::GetInputNumbers() const
 {
     return m_inputNumbers;
@@ -107,9 +173,8 @@ bool UIInputVector::HasFocus() const
            m_inputNumbers[2]->HasFocus() || m_inputNumbers[3]->HasFocus();
 }
 
-void UIInputVector::OnValueChanged(Object *object)
+void UIInputVector::OnValueChanged(EventEmitter<IEventsValueChanged> *object)
 {
-    EventEmitter<IValueChangedListener>::
-        PropagateToListeners(&IValueChangedListener::OnValueChanged, object);
+    EventEmitter<IEventsValueChanged>::PropagateToListeners(
+        &IEventsValueChanged::OnValueChanged, this);
 }
-

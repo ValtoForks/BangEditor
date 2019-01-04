@@ -1,79 +1,70 @@
 #include "BangEditor/ComponentInspectorWidgetFactory.h"
 
+#include "Bang/Behaviour.h"
 #include "Bang/Component.h"
-
-#include "BangEditor/CIWCamera.h"
-#include "BangEditor/CIWTransform.h"
-#include "BangEditor/CIWPointLight.h"
-#include "BangEditor/CIWAudioSource.h"
-#include "BangEditor/CIWMeshRenderer.h"
-#include "BangEditor/CIWAudioListener.h"
-#include "BangEditor/CIWRectTransform.h"
-#include "BangEditor/CIWUITextRenderer.h"
-#include "BangEditor/CIWUIImageRenderer.h"
-#include "BangEditor/CIWDirectionalLight.h"
-#include "BangEditor/CIWPostProcessEffect.h"
+#include "Bang/GameObject.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/Serializable.h"
+#include "Bang/String.h"
+#include "BangEditor/CIWAnimator.h"
+#include "BangEditor/CIWBehaviour.h"
 #include "BangEditor/CIWBehaviourContainer.h"
+#include "BangEditor/CIWCamera.h"
+#include "BangEditor/CIWParticleSystem.h"
+#include "BangEditor/CIWTransform.h"
+#include "BangEditor/CIWUIImageRenderer.h"
+#include "BangEditor/CIWUITextRenderer.h"
 #include "BangEditor/ComponentInspectorWidget.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+namespace Bang
+{
+class Behaviour;
+}
 
-ComponentInspectorWidget *ComponentInspectorWidgetFactory::Create(Component *component)
+using namespace Bang;
+using namespace BangEditor;
+
+ComponentInspectorWidget *ComponentInspectorWidgetFactory::Create(
+    Component *component)
 {
     ComponentInspectorWidget *ciw = nullptr;
+
     String cName = component->GetClassName();
-    if (cName == "Transform")
+    if (DCAST<Behaviour *>(component))
     {
-        ciw = GameObject::Create<CIWTransform>();
+        ciw = new CIWBehaviour();
     }
-    else if (cName == "RectTransform")
+    else if (cName == "Transform")
     {
-        ciw = GameObject::Create<CIWRectTransform>();
+        ciw = new CIWTransform();
     }
     else if (cName == "UITextRenderer")
     {
-        ciw = GameObject::Create<CIWUITextRenderer>();
+        ciw = new CIWUITextRenderer();
     }
     else if (cName == "UIImageRenderer")
     {
-        ciw = GameObject::Create<CIWUIImageRenderer>();
+        ciw = new CIWUIImageRenderer();
     }
-    else if (cName == "MeshRenderer")
+    else if (cName == "ParticleSystem")
     {
-        ciw = GameObject::Create<CIWMeshRenderer>();
+        ciw = new CIWParticleSystem();
     }
     else if (cName == "BehaviourContainer")
     {
-        ciw = GameObject::Create<CIWBehaviourContainer>();
-    }
-    else if (cName == "DirectionalLight")
-    {
-        ciw = GameObject::Create<CIWDirectionalLight>();
-    }
-    else if (cName == "PointLight")
-    {
-        ciw = GameObject::Create<CIWPointLight>();
+        ciw = new CIWBehaviourContainer();
     }
     else if (cName == "Camera")
     {
-        ciw = GameObject::Create<CIWCamera>();
+        ciw = new CIWCamera();
     }
-    else if (cName == "AudioListener")
+    else if (cName == "Animator")
     {
-        ciw = GameObject::Create<CIWAudioListener>();
-    }
-    else if (cName == "AudioSource")
-    {
-        ciw = GameObject::Create<CIWAudioSource>();
-    }
-    else if (cName == "PostProcessEffect")
-    {
-        ciw = GameObject::Create<CIWPostProcessEffect>();
+        ciw = new CIWAnimator();
     }
     else
     {
-        ciw = GameObject::Create<ComponentInspectorWidget>();
+        ciw = new ComponentInspectorWidget();
     }
 
     if (ciw)

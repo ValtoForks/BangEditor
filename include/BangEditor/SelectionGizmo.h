@@ -1,29 +1,41 @@
 #ifndef SELECTIONGIZMO_H
 #define SELECTIONGIZMO_H
 
+#include "Bang/BangDefines.h"
+#include "Bang/EventListener.h"
 #include "Bang/GameObject.h"
-#include "Bang/IDestroyListener.h"
-
+#include "Bang/IEventsDestroy.h"
+#include "Bang/MetaNode.h"
 #include "BangEditor/BangEditor.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Camera;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class IEventsDestroy;
+class Camera;
+class Object;
+template <class>
+class EventEmitter;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
+using namespace Bang;
+namespace BangEditor
+{
+class SelectionGizmo : public GameObject, public EventListener<IEventsDestroy>
 
-class SelectionGizmo : public GameObject,
-                       public IDestroyListener
 {
 public:
-    enum class SelectionState { Idle, Over, Grabbed };
+    enum class SelectionState
+    {
+        IDLE,
+        OVER,
+        GRABBED
+    };
 
     SelectionGizmo() = default;
-    virtual ~SelectionGizmo() = default;
+    virtual ~SelectionGizmo() override = default;
 
     // GameObject
-    void Update() override;
+    virtual void Update() override;
 
     virtual void SetReferencedGameObject(GameObject *referencedGameObject);
     GameObject *GetReferencedGameObject() const;
@@ -35,20 +47,24 @@ public:
     bool IsBeingGrabbed() const;
     bool GrabHasJustChanged() const;
 
-    // IObjectListener
-    void OnDisabled() override;
+    virtual void OnGrabBegin();
+    virtual void OnGrabEnd();
 
-    // IDestroyListener
-    virtual void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsObject
+    void OnDisabled(Object *object) override;
+
+    // IEventsDestroy
+    virtual void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
+
+protected:
+    virtual GameObject *GetSelectionGameObject() const;
 
 private:
     GameObject *p_referencedGameObject = nullptr;
 
-    SelectionState m_selectionState = SelectionState::Idle;
+    SelectionState m_selectionState = SelectionState::IDLE;
     bool m_grabHasJustChanged = false;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // SELECTIONGIZMO_H
-
+#endif  // SELECTIONGIZMO_H

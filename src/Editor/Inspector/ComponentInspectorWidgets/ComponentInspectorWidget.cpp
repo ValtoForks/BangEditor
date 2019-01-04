@@ -1,21 +1,27 @@
 #include "BangEditor/ComponentInspectorWidget.h"
 
-#include "Bang/Debug.h"
+#include "Bang/Array.h"
+#include "Bang/Assert.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/IEventsValueChanged.h"
 #include "Bang/UICheckBox.h"
 #include "Bang/UIFocusable.h"
-#include "Bang/UITextRenderer.h"
-#include "Bang/MaterialFactory.h"
 #include "Bang/UIImageRenderer.h"
-#include "Bang/UILayoutElement.h"
-#include "Bang/GameObjectFactory.h"
-#include "Bang/UIHorizontalLayout.h"
-
+#include "Bang/UITextRenderer.h"
 #include "BangEditor/EditorClipboard.h"
-#include "BangEditor/EditorIconManager.h"
+#include "BangEditor/EditorTextureFactory.h"
+#include "BangEditor/MenuItem.h"
+#include "BangEditor/UIContextMenu.h"
+#include "BangEditor/UndoRedoManager.h"
+#include "BangEditor/UndoRedoSerializableChange.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 ComponentInspectorWidget::ComponentInspectorWidget()
 {
@@ -27,21 +33,31 @@ ComponentInspectorWidget::~ComponentInspectorWidget()
 
 void ComponentInspectorWidget::InitInnerWidgets()
 {
-    InspectorWidget::InitInnerWidgets();
+    SerializableInspectorWidget::InitInnerWidgets();
 
     p_contextMenu = AddComponent<UIContextMenu>();
-    p_contextMenu->SetCreateContextMenuCallback([this](MenuItem *menuRootItem)
-    {
-        OnCreateContextMenu(menuRootItem);
-    });
-    AddComponent<UIFocusable>();
-    p_contextMenu->AddButtonPart( this );
-    p_contextMenu->AddButtonPart( GetWidgetsContainer() );
+    p_contextMenu->SetCreateContextMenuCallback(
+        [this](MenuItem *menuRootItem) { OnCreateContextMenu(menuRootItem); });
+
+    UIFocusable *focusable = AddComponent<UIFocusable>();
+    p_contextMenu->SetFocusable(focusable);
+
+    GetInspectorWidgetTitle()
+        ->GetEnabledCheckBox()
+        ->GetGameObject()
+        ->SetEnabled(MustShowEnabledCheckbox());
+
+    GetInspectorWidgetTitle()
+        ->GetEnabledCheckBox()
+        ->EventEmitter<IEventsValueChanged>::RegisterListener(this);
 }
 
 void ComponentInspectorWidget::UpdateFromReference()
 {
-    p_enabledCheckBox->SetChecked( GetComponent()->IsEnabled() );
+    SerializableInspectorWidget::UpdateFromReference();
+
+    GetInspectorWidgetTitle()->GetEnabledCheckBox()->SetChecked(
+        GetComponent()->IsEnabled());
 }
 
 void ComponentInspectorWidget::SetComponent(Component *comp)
@@ -49,10 +65,11 @@ void ComponentInspectorWidget::SetComponent(Component *comp)
     ASSERT(!GetComponent());
 
     p_component = comp;
-    SetTitle(GetComponent()->GetClassName());
-    p_icon->SetMaterial( MaterialFactory::GetUIImageInvY().Get() );
-    p_icon->SetImageTexture( GetComponentIconTexture().Get() );
-    Update();
+    UIImageRenderer *icon = GetInspectorWidgetTitle()->GetIcon();
+    icon->SetImageTexture(GetComponentIconTexture());
+    icon->SetTint(GetComponentIconTint());
+
+    SetSerializable(comp);
 }
 
 Component *ComponentInspectorWidget::GetComponent() const
@@ -67,48 +84,7 @@ GameObject *ComponentInspectorWidget::GetInspectedGameObject() const
 
 void ComponentInspectorWidget::SetTitle(const String &title)
 {
-    p_titleText->SetContent(title);
-}
-
-GameObject *ComponentInspectorWidget::CreateTitleGameObject()
-{
-    GameObject *titleHLGo = GameObjectFactory::CreateUIGameObject();
-    UIHorizontalLayout *titleHL = titleHLGo->AddComponent<UIHorizontalLayout>();
-    titleHL->SetSpacing(5);
-
-    p_icon = GameObjectFactory::CreateUIImage(Color::White);
-    GameObject *iconGo = p_icon->GetGameObject();
-    UILayoutElement *iconLE = iconGo->AddComponent<UILayoutElement>();
-    iconLE->SetPreferredSize( Vector2i(16) );
-    p_icon->SetTint(Color::DarkGray);
-
-    GameObject *titleTextGo = GameObjectFactory::CreateUIGameObject();
-    UITextRenderer *titleText = titleTextGo->AddComponent<UITextRenderer>();
-    titleText->SetHorizontalAlign(HorizontalAlignment::Left);
-    titleText->SetContent("InspectorWidget");
-    titleText->SetTextSize(12);
-    p_titleText = titleText;
-
-    UILayoutElement *titleLE = titleTextGo->AddComponent<UILayoutElement>();
-    titleLE->SetFlexibleWidth(99.9f);
-
-    GameObject *enabledTextGo = GameObjectFactory::CreateUIGameObject();
-    UITextRenderer *enabledText = enabledTextGo->AddComponent<UITextRenderer>();
-    enabledText->SetContent("Enabled");
-    enabledText->SetTextSize(12);
-    enabledTextGo->SetEnabled( MustShowEnabledCheckbox() );
-
-    p_enabledCheckBox = GameObjectFactory::CreateUICheckBox();
-    GameObject *enabledCheckBoxGo = p_enabledCheckBox->GetGameObject();
-    p_enabledCheckBox->EventEmitter<IValueChangedListener>::RegisterListener(this);
-    enabledCheckBoxGo->SetEnabled( MustShowEnabledCheckbox() );
-
-    iconGo->SetParent(titleHLGo);
-    titleTextGo->SetParent(titleHLGo);
-    enabledTextGo->SetParent(titleHLGo);
-    enabledCheckBoxGo->SetParent(titleHLGo);
-
-    return titleHLGo;
+    GetInspectorWidgetTitle()->GetText()->SetContent(title);
 }
 
 bool ComponentInspectorWidget::CanBeRemovedFromContextMenu() const
@@ -116,22 +92,71 @@ bool ComponentInspectorWidget::CanBeRemovedFromContextMenu() const
     return true;
 }
 
-void ComponentInspectorWidget::OnValueChanged(Object *object)
+void ComponentInspectorWidget::OnValueChangedCIW(
+    EventEmitter<IEventsValueChanged> *object)
 {
-    if (object == p_enabledCheckBox)
+    if (object == GetInspectorWidgetTitle()->GetEnabledCheckBox())
     {
-        GetComponent()->SetEnabled( p_enabledCheckBox->IsChecked() );
+        GetComponent()->SetEnabled(
+            GetInspectorWidgetTitle()->GetEnabledCheckBox()->IsChecked());
     }
 }
 
-RH<Texture2D> ComponentInspectorWidget::GetComponentIconTexture() const
+void ComponentInspectorWidget::OnValueChanged(
+    EventEmitter<IEventsValueChanged> *object)
+{
+    MetaNode undoMetaBefore;
+    if (GetComponent())
+    {
+        undoMetaBefore = GetComponent()->GetMeta();
+    }
+
+    SerializableInspectorWidget::OnValueChanged(object);
+    OnValueChangedCIW(object);
+
+    if (GetComponent())
+    {
+        PushCurrentStateToUndoRedo(undoMetaBefore);
+    }
+}
+
+Texture2D *ComponentInspectorWidget::GetComponentIconTexture() const
 {
     if (GetComponent())
     {
-        String componentName = GetComponent()->GetClassName();
-        return EditorIconManager::GetComponentIcon(componentName);
+        return EditorTextureFactory::GetComponentIcon(GetComponent());
     }
-    return EditorIconManager::GetCubeIcon();
+    return EditorTextureFactory::GetCubeIcon();
+}
+
+Color ComponentInspectorWidget::GetComponentIconTint() const
+{
+    if (GetComponent())
+    {
+        return EditorTextureFactory::GetComponentIconTint(GetComponent());
+    }
+    return Color::White();
+}
+
+void ComponentInspectorWidget::PushCurrentStateToUndoRedo(
+    const MetaNode &undoMetaBefore)
+{
+    MetaNode currentMeta = GetComponent()->GetMeta();
+    UndoRedoManager::PushAction(new UndoRedoSerializableChange(
+        GetComponent(), undoMetaBefore, currentMeta));
+}
+
+void ComponentInspectorWidget::
+    PushCurrentStateToUndoRedoIfAnyChangeForGameObject(
+        const MetaNode &undoMetaBefore)
+{
+    GameObject *go = GetComponent()->GetGameObject();
+    MetaNode currentMeta = go->GetMeta();
+    if (currentMeta.ToString() != undoMetaBefore.ToString())
+    {
+        UndoRedoManager::PushAction(
+            new UndoRedoSerializableChange(go, undoMetaBefore, currentMeta));
+    }
 }
 
 void ComponentInspectorWidget::OnCreateContextMenu(MenuItem *menuRootItem)
@@ -139,58 +164,64 @@ void ComponentInspectorWidget::OnCreateContextMenu(MenuItem *menuRootItem)
     menuRootItem->SetFontSize(12);
 
     MenuItem *remove = menuRootItem->AddItem("Remove");
-    remove->SetSelectedCallback([this](MenuItem*)
-    {
+    remove->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetGameObject()->GetMeta();
         GameObject *go = GetComponent()->GetGameObject();
         go->RemoveComponent(GetComponent());
+        PushCurrentStateToUndoRedoIfAnyChangeForGameObject(undoMetaBefore);
     });
     menuRootItem->AddSeparator();
 
     MenuItem *copy = menuRootItem->AddItem("Copy");
-    copy->SetSelectedCallback([this](MenuItem*)
-    { EditorClipboard::CopyComponent( GetComponent() ); });
+    copy->SetSelectedCallback(
+        [this](MenuItem *) { EditorClipboard::CopyComponent(GetComponent()); });
 
     MenuItem *cut = menuRootItem->AddItem("Cut");
-    cut->SetSelectedCallback([this](MenuItem*)
-    {
-        EditorClipboard::CopyComponent( GetComponent() );
-        Component::Destroy( GetComponent() );
+    cut->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetGameObject()->GetMeta();
+        EditorClipboard::CopyComponent(GetComponent());
+        PushCurrentStateToUndoRedoIfAnyChangeForGameObject(undoMetaBefore);
+        Component::Destroy(GetComponent());
     });
 
     MenuItem *paste = menuRootItem->AddItem("Paste");
-    paste->SetSelectedCallback([this](MenuItem*)
-    {
+    paste->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetGameObject()->GetMeta();
         Component *copiedComp = EditorClipboard::GetCopiedComponent();
-        Component *newComponent = copiedComp->Clone();
+        Component *newComponent = copiedComp->Clone(false);
         GetInspectedGameObject()->AddComponent(newComponent);
+        PushCurrentStateToUndoRedoIfAnyChangeForGameObject(undoMetaBefore);
     });
-    paste->SetOverAndActionEnabled( (EditorClipboard::HasCopiedComponent()) );
+    paste->SetOverAndActionEnabled((EditorClipboard::HasCopiedComponent()));
 
     MenuItem *pasteValues = menuRootItem->AddItem("Paste values");
-    pasteValues->SetSelectedCallback([this](MenuItem*)
-    {
+    pasteValues->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetMeta();
         Component *copiedComp = EditorClipboard::GetCopiedComponent();
-        copiedComp->CloneInto( GetComponent() );
+        copiedComp->CloneInto(GetComponent(), false);
+        PushCurrentStateToUndoRedo(undoMetaBefore);
     });
-    pasteValues->SetOverAndActionEnabled( (EditorClipboard::HasCopiedComponent()) );
+    pasteValues->SetOverAndActionEnabled(
+        (EditorClipboard::HasCopiedComponent()));
 
     menuRootItem->AddSeparator();
 
     MenuItem *moveUp = menuRootItem->AddItem("Move Up");
-    moveUp->SetSelectedCallback([this](MenuItem*)
-    {
+    moveUp->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetGameObject()->GetMeta();
         MoveComponent(GetComponent(), -1);
+        PushCurrentStateToUndoRedoIfAnyChangeForGameObject(undoMetaBefore);
     });
 
     MenuItem *moveDown = menuRootItem->AddItem("Move Down");
-    moveDown->SetSelectedCallback([this](MenuItem*)
-    {
+    moveDown->SetSelectedCallback([this](MenuItem *) {
+        MetaNode undoMetaBefore = GetComponent()->GetGameObject()->GetMeta();
         MoveComponent(GetComponent(), 1);
+        PushCurrentStateToUndoRedoIfAnyChangeForGameObject(undoMetaBefore);
     });
-    menuRootItem->AddSeparator();
 
-    remove->SetOverAndActionEnabled( CanBeRemovedFromContextMenu() );
-    cut->SetOverAndActionEnabled( CanBeRemovedFromContextMenu() );
+    remove->SetOverAndActionEnabled(CanBeRemovedFromContextMenu());
+    cut->SetOverAndActionEnabled(CanBeRemovedFromContextMenu());
 }
 
 void ComponentInspectorWidget::MoveComponent(Component *comp, int offset)
@@ -203,8 +234,18 @@ void ComponentInspectorWidget::MoveComponent(Component *comp, int offset)
     go->AddComponent(comp, newIndex);
 }
 
+void ComponentInspectorWidget::OnComponentSet()
+{
+    // Empty
+}
+
 bool ComponentInspectorWidget::MustShowEnabledCheckbox() const
 {
     return true;
 }
 
+void ComponentInspectorWidget::OnReflectableSet()
+{
+    SerializableInspectorWidget::OnReflectableSet();
+    OnComponentSet();
+}

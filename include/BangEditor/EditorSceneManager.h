@@ -1,26 +1,36 @@
 #ifndef EDITORSCENEMANAGER_H
 #define EDITORSCENEMANAGER_H
 
-#include "Bang/SceneManager.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsSceneManager.h"
+#include "Bang/SceneManager.h"
 #include "BangEditor/BangEditor.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Scene;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class BehaviourManager;
+class IEventsSceneManager;
+class Path;
+class Scene;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class EditorScene;
-FORWARD class EditorBehaviourManager;
+using namespace Bang;
+namespace BangEditor
+{
+class EditorBehaviourManager;
+class EditorScene;
 
 class EditorSceneManager : public SceneManager,
-                           public ISceneManagerListener
+                           public EventListener<IEventsSceneManager>
 {
 public:
     EditorSceneManager();
-    virtual ~EditorSceneManager();
+    virtual ~EditorSceneManager() override;
 
     static Scene *GetOpenScene();
     static EditorScene *GetEditorScene();
@@ -30,8 +40,9 @@ public:
 protected:
     EditorScene *p_editorScene = nullptr;
 
-    Scene *_GetOpenScene() const;
-    EditorScene *_GetEditorScene() const;
+    Scene *GetOpenScene_() const;
+    EditorScene *GetEditorScene_() const;
+    Scene *GetObjectPtrLookupScene_() const override;
 
     static void SetActiveScene(Scene *activeScene);
 
@@ -42,9 +53,7 @@ private:
     friend class EditorScene;
     friend class ScenePlayer;
     friend class EditorApplication;
-
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORSCENEMANAGER_H
+#endif  // EDITORSCENEMANAGER_H

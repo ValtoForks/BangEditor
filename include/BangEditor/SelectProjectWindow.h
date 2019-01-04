@@ -2,43 +2,42 @@
 #define SELECTPROJECTWINDOW_H
 
 #include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
+#include "Bang/GameObject.h"
+#include "Bang/IEventsFocus.h"
 #include "Bang/Path.h"
 #include "Bang/Scene.h"
+#include "Bang/String.h"
+#include "Bang/UIFocusable.h"
 #include "Bang/Window.h"
-#include "Bang/IFocusable.h"
-#include "Bang/IFocusListener.h"
-
 #include "BangEditor/BangEditor.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UIButton;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class UIButton;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class SelectProjectWindow : public Window
 {
 public:
     static Path SelectedProjectPath;
 
     SelectProjectWindow();
-    virtual ~SelectProjectWindow();
+    virtual ~SelectProjectWindow() override;
 
     void Init();
 };
 
 // ==========================================================================
 
-class SelectProjectScene : public Scene,
-                           public IFocusListener
+class SelectProjectScene : public Scene
 {
 public:
     SelectProjectScene();
-    virtual ~SelectProjectScene();
-
-    // IFocusListener
-    void OnClicked(IFocusable *focusable) override;
+    virtual ~SelectProjectScene() override;
 
 private:
     class RecentProjectListEntry : public GameObject
@@ -48,14 +47,14 @@ private:
     public:
         RecentProjectListEntry();
         RecentProjectListEntry(const Path &projectPath);
-        virtual ~RecentProjectListEntry();
+        virtual ~RecentProjectListEntry() override;
 
-        Path m_projectPath = Path::Empty;
+        Path m_projectPath = Path::Empty();
     };
 
-    Path m_selectedRecentPath = Path::Empty;
-    UIButton *p_newProjectButton          = nullptr;
-    UIButton *p_openProjectButton         = nullptr;
+    Path m_selectedRecentPath = Path::Empty();
+    UIButton *p_newProjectButton = nullptr;
+    UIButton *p_openProjectButton = nullptr;
     UIButton *p_openSelectedProjectButton = nullptr;
 
     // GameObject
@@ -65,9 +64,6 @@ private:
     void OpenProject();
     void ConfirmOpenProject(const Path &projectFilepath);
 };
+}  // namespace BangEditor
 
-
-NAMESPACE_BANG_EDITOR_END
-
-#endif // SELECTPROJECTWINDOW_H
-
+#endif  // SELECTPROJECTWINDOW_H

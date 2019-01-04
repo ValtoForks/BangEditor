@@ -1,59 +1,82 @@
 #ifndef EDITORSCENE_H
 #define EDITORSCENE_H
 
-#include <stack>
+#include <vector>
 
-#include "Bang/Scene.h"
 #include "Bang/AARect.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/IEventsFileTracker.h"
+#include "Bang/Scene.h"
 #include "Bang/SceneManager.h"
-#include "Bang/IDestroyListener.h"
-
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/Editor.h"
+#include "BangEditor/EditorWindow.h"
+#include "BangEditor/IEventsScenePlayer.h"
+#include "BangEditor/IEventsTabHeader.h"
+#include "BangEditor/PlayState.h"
 #include "BangEditor/ScenePlayer.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Scene;
-FORWARD class Texture2D;
-FORWARD class GameObject;
-FORWARD class UITextRenderer;
-FORWARD class UIImageRenderer;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class GameObject;
+class Scene;
+class Texture2D;
+class UIImageRenderer;
+class UITextRenderer;
+class Path;
+class Window;
+template <class>
+class EventEmitter;
+}  // namespace Bang
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class Console;
-FORWARD class MenuBar;
-FORWARD class Explorer;
-FORWARD class Inspector;
-FORWARD class Hierarchy;
-FORWARD class ScenePlayer;
-FORWARD class ProjectManager;
-FORWARD class UITabContainer;
-FORWARD class EditorClipboard;
-FORWARD class SceneOpenerSaver;
-FORWARD class UISceneContainer;
-FORWARD class EditorApplication;
-FORWARD class EditorFileTracker;
-FORWARD class EditSceneGameObjects;
-FORWARD class UISceneEditContainer;
-FORWARD class UIScenePlayContainer;
+using namespace Bang;
+namespace BangEditor
+{
+class AnimatorSMEditor;
+class Console;
+class EditSceneGameObjects;
+class EditorApplication;
+class EditorMeshFactoryUITab;
+class EditorClipboard;
+class EditorFileTracker;
+class Explorer;
+class Hierarchy;
+class IEventsScenePlayer;
+class IEventsTabHeader;
+class Inspector;
+class MenuBar;
+class SceneOpenerSaver;
+class ScenePlayer;
+class UISceneContainer;
+class UISceneEditContainer;
+class UIScenePlayContainer;
+class UITabContainer;
+class UITabHeader;
+class UITabStation;
+class UndoRedoManager;
 
 class EditorScene : public Scene,
-                    public IScenePlayerListener,
-                    public ISceneManagerListener
+                    public EventListener<IEventsWindow>,
+                    public EventListener<IEventsTabHeader>,
+                    public EventListener<IEventsScenePlayer>,
+                    public EventListener<IEventsSceneManager>
 {
     GAMEOBJECT_EDITOR(EditorScene);
 
 public:
+    // GameObject
     void Update() override;
     void OnResize(int newWidth, int newHeight) override;
 
-    void RenderOpenSceneIfNeeded();
-    void SetViewportForOpenScene();
-
     Scene *GetOpenScene() const;
 
+    void OpenTab(GameObject *tabbedChild);
     AARect GetOpenSceneWindowRectNDC() const;
 
     MenuBar *GetMenuBar() const;
@@ -62,9 +85,10 @@ public:
     Inspector *GetInspector() const;
     Hierarchy *GetHierarchy() const;
     ScenePlayer *GetScenePlayer() const;
-    ProjectManager *GetProjectManager() const;
     EditorClipboard *GetEditorClipboard() const;
-    UITabContainer *GetSceneTabContainer() const;
+    UndoRedoManager *GetUndoRedoManager() const;
+    AnimatorSMEditor *GetAnimatorSMEditor() const;
+    EditorMeshFactoryUITab *GetEditorMeshFactoryTab() const;
     SceneOpenerSaver *GetSceneOpenerSaver() const;
     EditorFileTracker *GetEditorFileTracker() const;
     UISceneEditContainer *GetSceneEditContainer() const;
@@ -73,62 +97,58 @@ public:
 
 protected:
     EditorScene();
-    virtual ~EditorScene();
+    virtual ~EditorScene() override;
 
 private:
-    EditorFileTracker *m_editorFileTracker = nullptr;
-
     ScenePlayer *m_scenePlayer = nullptr;
-    ProjectManager *m_projectManager = nullptr;
     EditorClipboard *m_editorClipboard = nullptr;
+    UndoRedoManager *m_undoRedoManager = nullptr;
     SceneOpenerSaver *m_sceneOpenerSaver = nullptr;
+    EditorFileTracker *m_editorFileTracker = nullptr;
     EditSceneGameObjects *m_editSceneGameObjects = nullptr;
 
-    Console *p_console     = nullptr;
-    Explorer *p_explorer   = nullptr;
+    Scene *p_openScene = nullptr;
+
+    MenuBar *m_menuBar = nullptr;
+    GameObject *m_mainEditorVLGo = nullptr;
+
+    UITabStation *p_tabStation = nullptr;
+    Console *p_console = nullptr;
+    Explorer *p_explorer = nullptr;
     Inspector *p_inspector = nullptr;
     Hierarchy *p_hierarchy = nullptr;
-
-    Scene *p_openScene = nullptr;
+    AnimatorSMEditor *p_animatorSMEditor = nullptr;
+    EditorMeshFactoryUITab *p_editorMeshFactoryTab = nullptr;
     UISceneEditContainer *p_sceneEditContainer = nullptr;
     UIScenePlayContainer *p_scenePlayContainer = nullptr;
 
-    UITabContainer *p_leftTabContainer = nullptr;
-    UITabContainer *p_centerTabContainer = nullptr;
-    UITabContainer *p_rightTabContainer = nullptr;
-    UITabContainer *p_botTabContainer = nullptr;
-
-    MenuBar *m_menuBar = nullptr;
-    GameObject *m_mainEditorVL = nullptr;
-
-    std::stack<AARecti> m_viewportsStack;
-
     void Init();
-
-    // GameObject
-    void BeforeRender() override;
 
     void BindOpenScene();
     void UnBindOpenScene();
-    void PushGLViewport();
-    void PopGLViewport();
 
     void SetOpenScene(Scene *openScene);
 
-    // ISceneManagerListener
+    // IEventsTabHeader
+    void OnTabHeaderClicked(UITabHeader *header) override;
+
+    // IEventsWindow
+    void OnFocusGained(Window *w) override;
+    void OnFocusLost(Window *w) override;
+
+    // IEventsSceneManager
     void OnSceneLoaded(Scene *scene, const Path &sceneFilepath) override;
 
-    // IScenePlayerListener
+    // IEventsScenePlayer
     void OnPlayStateChanged(PlayState previousPlayState,
                             PlayState newPlayState) override;
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
     friend class EditorApplication;
     friend class EditorSceneManager;
 };
+}  // namespace BangEditor
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORSCENE_H
+#endif  // EDITORSCENE_H

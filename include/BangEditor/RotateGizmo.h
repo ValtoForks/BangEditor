@@ -2,25 +2,32 @@
 #define ROTATEGIZMO_H
 
 #include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/GameObject.h"
-
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/SelectionGizmo.h"
 
-NAMESPACE_BANG_BEGIN
-FORWARD class LineRenderer;
-FORWARD class MeshRenderer;
-NAMESPACE_BANG_END
+namespace Bang
+{
+class GameObject;
+class LineRenderer;
+class MeshRenderer;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class RotateGizmoAxis;
+using namespace Bang;
+namespace BangEditor
+{
+class RotateGizmoAxis;
 
 class RotateGizmo : public SelectionGizmo
 {
     GAMEOBJECT_EDITOR(RotateGizmo);
 
 public:
+    RotateGizmo();
+
     // GameObject
     void Update() override;
     void Render(RenderPass rp, bool renderChildren) override;
@@ -38,15 +45,12 @@ private:
     MeshRenderer *p_sphereRenderer = nullptr;
     LineRenderer *p_sphereBoundsRenderer = nullptr;
 
-    RotateGizmo();
-	virtual ~RotateGizmo();
+    virtual ~RotateGizmo() override;
 
     void CreateSphereBoundsPoints();
 
     friend class RotateGizmoAxis;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // ROTATEGIZMO_H
-
+#endif  // ROTATEGIZMO_H

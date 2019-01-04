@@ -1,24 +1,35 @@
 #include "BangEditor/ScenePlayer.h"
 
-#include "Bang/Scene.h"
-#include "Bang/Behaviour.h"
+#include "Bang/AudioManager.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/Flags.h"
+#include "Bang/GameObject.h"
 #include "Bang/GameObjectFactory.h"
-#include "Bang/BehaviourContainer.h"
-
+#include "Bang/Key.h"
+#include "Bang/Physics.h"
+#include "Bang/Scene.h"
+#include "Bang/SceneManager.h"
+#include "Bang/String.h"
 #include "BangEditor/Editor.h"
-#include "BangEditor/EditorScene.h"
-#include "BangEditor/EditorCamera.h"
-#include "BangEditor/SceneOpenerSaver.h"
-#include "BangEditor/EditorSceneManager.h"
 #include "BangEditor/EditorBehaviourManager.h"
+#include "BangEditor/EditorScene.h"
+#include "BangEditor/EditorSceneManager.h"
+#include "BangEditor/IEventsScenePlayer.h"
+#include "BangEditor/Shortcut.h"
+#include "BangEditor/ShortcutManager.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 ScenePlayer::ScenePlayer()
 {
-    ShortcutManager::RegisterShortcut(Shortcut(Key::LCtrl, Key::P, "Play"),
-                                      &ScenePlayer::OnShortcutPressed);
+    ShortcutManager::RegisterShortcut(
+        Shortcut(Key::P, KeyModifier::LCTRL, "Play"),
+        &ScenePlayer::OnShortcutPressed);
+    ShortcutManager::RegisterShortcut(
+        Shortcut(
+            Key::P, (KeyModifier::LSHIFT | KeyModifier::LCTRL), "Pause", true),
+        &ScenePlayer::OnShortcutPressed);
 }
 
 ScenePlayer::~ScenePlayer()
@@ -38,8 +49,25 @@ void ScenePlayer::OnShortcutPressed(const Shortcut &shortcut)
 {
     if (shortcut.GetName() == "Play")
     {
-        if (!Editor::IsEditingScene()) { StopScene(); }
-        else { PlayScene(); }
+        if (!Editor::IsEditingScene())
+        {
+            StopScene();
+        }
+        else
+        {
+            PlayScene();
+        }
+    }
+    else if (shortcut.GetName() == "Pause")
+    {
+        if (GetPlayState() == PlayState::PLAYING)
+        {
+            PauseScene();
+        }
+        else if (GetPlayState() == PlayState::PAUSED)
+        {
+            PlayScene();
+        }
     }
 }
 
@@ -52,12 +80,12 @@ void ScenePlayer::SetPlayState(PlayState playState)
         ScenePlayer *sp = ScenePlayer::GetInstance();
         sp->m_currentPlayState = playState;
 
-        sp->EventEmitter<IScenePlayerListener>::PropagateToListeners(
-                    &IScenePlayerListener::OnPlayStateChanged,
-                    previousPlayState,
-                    sp->m_currentPlayState);
+        sp->EventEmitter<IEventsScenePlayer>::PropagateToListeners(
+            &IEventsScenePlayer::OnPlayStateChanged,
+            previousPlayState,
+            sp->m_currentPlayState);
 
-        AudioManager::SetPlayOnStartBlocked( Editor::IsEditingScene() );
+        AudioManager::SetPlayOnStartBlocked(Editor::IsEditingScene());
     }
 }
 
@@ -67,58 +95,63 @@ PlayState ScenePlayer::GetPlayState()
     return sp ? sp->m_currentPlayState : Undef<PlayState>();
 }
 
-bool Editor::IsEditingScene()
+Scene *ScenePlayer::GetEditOpenScene() const
 {
-    return ScenePlayer::GetPlayState() == PlayState::Editing;
+    return p_editOpenScene;
 }
 
+Scene *ScenePlayer::GetPlayOpenScene() const
+{
+    return p_playOpenScene;
+}
+
+#include "Bang/Application.h"
 void ScenePlayer::PlayScene()
 {
-    if (ScenePlayer::GetPlayState() != PlayState::Playing)
+    if (ScenePlayer::GetPlayState() != PlayState::PLAYING)
     {
         ScenePlayer *sp = ScenePlayer::GetInstance();
-        if (ScenePlayer::GetPlayState() == PlayState::Editing)
+        if (ScenePlayer::GetPlayState() == PlayState::EDITING)
         {
             sp->p_editOpenScene = EditorSceneManager::GetOpenScene();
 
             // Play scene!
-            EditorBehaviourManager *edBehaviourMgr = EditorBehaviourManager::GetActive();
+            EditorBehaviourManager *edBehaviourMgr =
+                EditorBehaviourManager::GetActive();
             bool behavioursReady = edBehaviourMgr->PrepareBehavioursLibrary();
             if (behavioursReady)
             {
-                Scene *openScene = EditorSceneManager::GetOpenScene();
-                if (openScene)
+                if (Scene *openScene = EditorSceneManager::GetOpenScene())
                 {
-                    ScenePlayer::SetPlayState(PlayState::JustBeforePlaying);
+                    ScenePlayer::SetPlayState(PlayState::JUST_BEFORE_PLAYING);
 
                     // Create new scene cloning the open scene into it
                     sp->p_playOpenScene = GameObjectFactory::CreateScene(false);
-                    openScene->CloneInto(sp->p_playOpenScene);
-
-                    // Close the open scene
-                    SceneManager::LoadSceneInstantly(nullptr, false);
+                    openScene->CloneInto(sp->p_playOpenScene, true);
 
                     // Now set the open scene in the editor
-                    SceneManager::LoadSceneInstantly(sp->p_playOpenScene, false);
+                    SceneManager::LoadSceneInstantly(sp->p_playOpenScene,
+                                                     false);
 
-                    Time::SetDeltaTimeReferenceToNow();
-                    ScenePlayer::SetPlayState(PlayState::Playing);
+                    Physics::GetInstance()->SetIgnoreNextFrames(
+                        sp->p_playOpenScene, 5);
+                    ScenePlayer::SetPlayState(PlayState::PLAYING);
                 }
             }
         }
-        else if (ScenePlayer::GetPlayState() == PlayState::Paused)
+        else if (ScenePlayer::GetPlayState() == PlayState::PAUSED)
         {
             AudioManager::ResumeAllSounds();
-            ScenePlayer::SetPlayState(PlayState::Playing);
+            ScenePlayer::SetPlayState(PlayState::PLAYING);
         }
     }
 }
 
 void ScenePlayer::PauseScene()
 {
-    if (ScenePlayer::GetPlayState() != PlayState::Paused)
+    if (ScenePlayer::GetPlayState() != PlayState::PAUSED)
     {
-        ScenePlayer::SetPlayState(PlayState::Paused);
+        ScenePlayer::SetPlayState(PlayState::PAUSED);
         AudioManager::PauseAllSounds();
     }
 }
@@ -132,13 +165,17 @@ void ScenePlayer::StepFrame()
 
 void ScenePlayer::StopScene()
 {
-    if (ScenePlayer::GetPlayState() != PlayState::Editing)
+    if (ScenePlayer::GetPlayState() != PlayState::EDITING)
     {
         ScenePlayer *sp = ScenePlayer::GetInstance();
         SceneManager::LoadSceneInstantly(sp->p_editOpenScene, false);
-        if (sp->p_playOpenScene) { GameObject::Destroy(sp->p_playOpenScene); }
+        if (sp->p_playOpenScene)
+        {
+            GameObject::DestroyImmediate(sp->p_playOpenScene);
+            sp->p_playOpenScene = nullptr;
+        }
 
-        ScenePlayer::SetPlayState(PlayState::Editing);
+        ScenePlayer::SetPlayState(PlayState::EDITING);
     }
 }
 

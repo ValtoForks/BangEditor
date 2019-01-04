@@ -2,20 +2,29 @@
 #define TRANSLATEGIZMO_H
 
 #include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/GameObject.h"
-
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/SelectionGizmo.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
+namespace Bang
+{
+class GameObject;
+}
 
-FORWARD class TranslateGizmoAxis;
+using namespace Bang;
+namespace BangEditor
+{
+class TranslateGizmoAxis;
 
 class TranslateGizmo : public SelectionGizmo
 {
     GAMEOBJECT_EDITOR(TranslateGizmo);
 
 public:
+    TranslateGizmo();
+
     // SelectionGizmo
     void SetReferencedGameObject(GameObject *referencedGameObject) override;
 
@@ -24,12 +33,8 @@ private:
     TranslateGizmoAxis *p_axisY = nullptr;
     TranslateGizmoAxis *p_axisZ = nullptr;
 
-    TranslateGizmo();
-    virtual ~TranslateGizmo();
+    virtual ~TranslateGizmo() override;
 };
+}
 
-
-NAMESPACE_BANG_EDITOR_END
-
-#endif // TRANSLATEGIZMO_H
-
+#endif  // TRANSLATEGIZMO_H

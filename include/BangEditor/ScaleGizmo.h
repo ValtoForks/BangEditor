@@ -2,34 +2,40 @@
 #define SCALEGIZMO_H
 
 #include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/GameObject.h"
-
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/SelectionGizmo.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
+namespace Bang
+{
+class GameObject;
+}
 
-FORWARD class ScaleGizmoAxis;
+using namespace Bang;
+namespace BangEditor
+{
+class ScaleGizmoAxis;
 
 class ScaleGizmo : public SelectionGizmo
 {
     GAMEOBJECT_EDITOR(ScaleGizmo);
 
 public:
+    ScaleGizmo();
+
     // SelectionGizmo
     void SetReferencedGameObject(GameObject *referencedGameObject) override;
 
 private:
-    ScaleGizmoAxis *p_axisX   = nullptr;
-    ScaleGizmoAxis *p_axisY   = nullptr;
-    ScaleGizmoAxis *p_axisZ   = nullptr;
+    ScaleGizmoAxis *p_axisX = nullptr;
+    ScaleGizmoAxis *p_axisY = nullptr;
+    ScaleGizmoAxis *p_axisZ = nullptr;
     ScaleGizmoAxis *p_axisXYZ = nullptr;
 
-    ScaleGizmo();
-    virtual ~ScaleGizmo();
+    virtual ~ScaleGizmo() override;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // SCALEGIZMO_H
-
+#endif  // SCALEGIZMO_H

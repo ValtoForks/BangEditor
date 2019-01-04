@@ -1,0 +1,1 @@
+../Bang/Scripts/format-code.sh

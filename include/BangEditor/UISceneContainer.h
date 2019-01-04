@@ -1,62 +1,98 @@
 #ifndef UISCENECONTAINER_H
 #define UISCENECONTAINER_H
 
-#include "Bang/GameObject.h"
-#include "Bang/ITransformListener.h"
-#include "Bang/IValueChangedListener.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsTransform.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/RenderPass.h"
 #include "BangEditor/BangEditor.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Texture2D;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class Camera;
+class IEventsDestroy;
+class IEventsTransform;
+class IEventsValueChanged;
+class Scene;
+class Texture2D;
+class UIFocusable;
+class UIImageRenderer;
+template <class>
+class EventEmitter;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class UISceneImage;
-FORWARD class UISceneToolbar;
+using namespace Bang;
+namespace BangEditor
+{
+class UISceneImage;
+class UISceneToolbar;
+class UISceneToolbarDown;
 
 class UISceneContainer : public GameObject,
-                         public IDestroyListener,
-                         public IValueChangedListener,
-                         public ITransformListener
+                         public EventListener<IEventsFocus>,
+                         public EventListener<IEventsValueChanged>,
+                         public EventListener<IEventsTransform>,
+                         public EventListener<IEventsDestroy>
 {
 public:
     UISceneContainer();
-    virtual ~UISceneContainer();
+    virtual ~UISceneContainer() override;
 
-    void RenderIfNeeded();
+    // GameObject
+    void BeforeChildrenRender(RenderPass rp) override;
+
+    void RenderContainedSceneIfNeeded();
 
     void SetScene(Scene *scene);
 
     Scene *GetContainedScene() const;
-    AARect GetSceneImageRectNDC() const;
+    AARect GetSceneImageAARectNDC() const;
+
+    UISceneToolbar *GetSceneToolbar() const;
+    UISceneImage *GetSceneImage() const;
+    UIFocusable *GetFocusable() const;
+    UISceneToolbarDown *GetSceneToolbarDown() const;
 
 protected:
-    UISceneToolbar* GetSceneToolbar() const;
+    UISceneToolbar *p_sceneToolbar = nullptr;
+
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
+
+    // IEventsFocus
+    UIEventResult OnUIEvent(UIFocusable *focusable,
+                            const UIEvent &event) override;
 
 private:
+    UIFocusable *p_focusable = nullptr;
+    UIImageRenderer *p_border = nullptr;
+
     Scene *p_containedScene = nullptr;
 
-    UISceneToolbar *p_sceneToolbar = nullptr;
+    UISceneToolbarDown *p_sceneToolbarDown = nullptr;
     UISceneImage *p_sceneImage = nullptr;
 
-    virtual Camera* GetSceneCamera(Scene *scene) = 0;
-    virtual bool NeedsToRenderScene(Scene *scene) = 0;
-    virtual void OnRenderNeededSceneFinished();
+    GameObject *p_noCameraOverlay = nullptr;
 
-    // ITransformListener
+    virtual Camera *GetSceneCamera(Scene *scene) = 0;
+    virtual bool NeedsToRenderContainedScene(Scene *scene) = 0;
+    virtual void OnRenderContainedSceneBegin();
+    virtual void OnRenderContainedSceneFinished();
+
+    // IEventsTransform
     void OnTransformChanged() override;
 
-    // IValueChangedListener
-    void OnValueChanged(Object *object) override;
-
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsValueChanged
+    void OnValueChanged(EventEmitter<IEventsValueChanged> *object) override;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // UISCENECONTAINER_H
-
+#endif  // UISCENECONTAINER_H

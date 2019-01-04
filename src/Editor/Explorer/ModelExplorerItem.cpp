@@ -1,19 +1,16 @@
 #include "BangEditor/ModelExplorerItem.h"
 
-#include "Bang/Mesh.h"
+#include "Bang/AssetHandle.h"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
+#include "Bang/GameObject.h"
 #include "Bang/Model.h"
 #include "Bang/Scene.h"
-#include "Bang/ModelIO.h"
-#include "Bang/Material.h"
-#include "Bang/Resources.h"
-#include "Bang/GameObject.h"
-#include "Bang/MeshRenderer.h"
-#include "Bang/GameObjectFactory.h"
-
 #include "BangEditor/EditorSceneManager.h"
+#include "BangEditor/MenuItem.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 ModelExplorerItem::ModelExplorerItem()
 {
@@ -28,18 +25,17 @@ void ModelExplorerItem::OnCreateContextMenu(MenuItem *menuRootItem)
     ExplorerItem::OnCreateContextMenu(menuRootItem);
 
     MenuItem *createGo = menuRootItem->AddItem("Create GameObject from model");
-    createGo->SetSelectedCallback([this](MenuItem*)
-    {
+    createGo->SetSelectedCallback([this](MenuItem *) {
         Scene *openScene = EditorSceneManager::GetOpenScene();
         if (openScene)
         {
-            RH<Model> model = Resources::Load<Model>(GetPath());
+            AH<Model> model = Assets::Load<Model>(GetPath());
             if (model)
             {
-                GameObject *gameObject = model.Get()->CreateGameObjectFromModel();
+                GameObject *gameObject =
+                    model.Get()->CreateGameObjectFromModel();
                 gameObject->SetParent(openScene);
             }
         }
     });
 }
-

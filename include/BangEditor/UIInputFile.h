@@ -2,48 +2,50 @@
 #define UIINPUTFILE_H
 
 #include "Bang/Path.h"
-#include "Bang/Array.h"
-#include "Bang/GameObject.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IValueChangedListener.h"
+#include "BangEditor/UIInputFileOrObject.h"
 
-#include "BangEditor/BangEditor.h"
+namespace Bang
+{
+class IEventsDragDrop;
+class IEventsValueChanged;
+class UIButton;
+class UIInputNumber;
+class UIInputText;
+}
 
-NAMESPACE_BANG_BEGIN
-FORWARD class UIButton;
-FORWARD class UIInputText;
-FORWARD class UIInputNumber;
-NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-class UIInputFile : public GameObject,
-                    public EventEmitter<IValueChangedListener>
+using namespace Bang;
+namespace BangEditor
+{
+class UIInputFile : public UIInputFileOrObject
 {
     GAMEOBJECT_EDITOR(UIInputFile);
 
 public:
-    void SetPath(const Path &path);
+    UIInputFile();
+
+    virtual void SetPath(const Path &path);
     void SetExtensions(const Array<String> &extensions);
 
     Path GetPath() const;
-    UIInputText *GetInputText() const;
-    const Array<String>& GetExtensions() const;
+    const Array<String> &GetExtensions() const;
+    bool HasExistingPath() const;
+    AH<Texture2D> GetPreviewTextureFromPath(const Path &path);
 
 protected:
-	UIInputFile();
-    virtual ~UIInputFile();
+    virtual ~UIInputFile() override;
+
+    // UIInputFileOrObject
+    bool CanDoZoom() const override;
+    bool AcceptsDrag(
+        EventEmitter<IEventsDragDrop> *dragDroppable) const override;
+    void OnDropped(EventEmitter<IEventsDragDrop> *dragDroppable) override;
+    void OnSearchButtonClicked() override;
+    void OnOpenButtonClicked() override;
 
 private:
-    Path m_path = Path("undef"); // Set to empty in constructor
+    Path m_path = Path("undef");  // Set to empty in constructor
     Array<String> m_extensions;
-
-    UIButton *p_searchButton = nullptr;
-    UIInputText *p_pathInputText = nullptr;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // UIINPUTFILE_H
-
+#endif  // UIINPUTFILE_H

@@ -1,45 +1,52 @@
 #include "BangEditor/UISceneImage.h"
 
-#include "Bang/Scene.h"
-#include "Bang/AARect.h"
+#include "Bang/AssetHandle.h"
 #include "Bang/Camera.h"
+#include "Bang/Color.h"
 #include "Bang/GBuffer.h"
-#include "Bang/GEngine.h"
+#include "Bang/GL.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/GameObjectFactory.h"
 #include "Bang/Material.h"
-#include "Bang/UIFocusable.h"
-#include "Bang/RectTransform.h"
-#include "Bang/UITextRenderer.h"
+#include "Bang/Path.h"
+#include "Bang/Paths.h"
+#include "Bang/ShaderProgram.h"
+#include "Bang/ShaderProgramFactory.h"
+#include "Bang/Texture2D.h"
 #include "Bang/UIImageRenderer.h"
 #include "Bang/UILayoutElement.h"
-#include "Bang/UIVerticalLayout.h"
-#include "Bang/GameObjectFactory.h"
-#include "Bang/SelectionFramebuffer.h"
-
+#include "BangEditor/EditorCamera.h"
+#include "BangEditor/EditorPaths.h"
 #include "BangEditor/UISceneDebugStats.h"
-#include "BangEditor/EditorSceneManager.h"
 
-USING_NAMESPACE_BANG_EDITOR
+using namespace BangEditor;
 
 UISceneImage::UISceneImage()
 {
-    SetName("SceneContainer");
+    SetName("SceneImage");
 
     GameObjectFactory::CreateUIGameObjectInto(this);
 
     UILayoutElement *le = AddComponent<UILayoutElement>();
-    le->SetMinSize( Vector2i(170, 100) );
-    le->SetFlexibleSize( Vector2(6, 1) );
+    le->SetFlexibleSize(Vector2::One());
 
-    AddComponent<UIFocusable>();
+    AddComponent<UIImageRenderer>()->SetTint(Color::Black());
 
-    UIVerticalLayout *vl = AddComponent<UIVerticalLayout>(); (void)(vl);
+    // UIVerticalLayout *vl = AddComponent<UIVerticalLayout>();
+    // BANG_UNUSED(vl);
 
+    const Path engShadersDir = Paths::GetEngineAssetsDir().Append("Shaders");
     GameObject *sceneImgGo = GameObjectFactory::CreateUIGameObject();
-    p_sceneImg  = sceneImgGo->AddComponent<UISceneImageRenderer>();
-    UILayoutElement *imgLE = sceneImgGo->AddComponent<UILayoutElement>();
-    imgLE->SetFlexibleSize( Vector2(1) );
+    p_sceneImg = sceneImgGo->AddComponent<UISceneImageRenderer>();
+    p_sceneImg->SetMode(UIImageRenderer::Mode::TEXTURE);
+    p_sceneImg->GetMaterial()->SetShaderProgram(ShaderProgramFactory::Get(
+        EditorPaths::GetEditorAssetsDir().Append("Shaders").Append(
+            "UISceneImage.bushader")));
 
-    p_sceneDebugStats = GameObject::Create<UISceneDebugStats>();
+    UILayoutElement *imgLE = sceneImgGo->AddComponent<UILayoutElement>();
+    imgLE->SetFlexibleSize(Vector2::One());
+
+    p_sceneDebugStats = new UISceneDebugStats();
 
     sceneImgGo->SetParent(this);
     p_sceneDebugStats->SetParent(this);
@@ -49,7 +56,6 @@ UISceneImage::UISceneImage()
 
 UISceneImage::~UISceneImage()
 {
-
 }
 
 void UISceneImage::Update()
@@ -57,43 +63,70 @@ void UISceneImage::Update()
     GameObject::Update();
 }
 
+void UISceneImage::Render(RenderPass renderPass, bool renderChildren)
+{
+    Camera *sceneCam = GetCamera();
+    GBuffer *gb = sceneCam ? sceneCam->GetGBuffer() : nullptr;
+    ShaderProgram *sp = p_sceneImg->GetMaterial()->GetShaderProgram();
+    switch (GetRenderMode())
+    {
+        case UISceneImage::RenderMode::DEPTH:
+        case UISceneImage::RenderMode::WORLD_POSITION:
+        {
+            switch (GetRenderMode())
+            {
+                case UISceneImage::RenderMode::DEPTH:
+                case UISceneImage::RenderMode::WORLD_POSITION:
+                {
+                    if (gb && sp)
+                    {
+                        Texture2D *depthTex = gb->GetSceneDepthStencilTexture();
+                        sp->SetTexture2D("B_SceneDepthStencilTex", depthTex);
+                    }
+                }
+                break;
+
+                default: break;
+            }
+        }
+        break;
+
+        default: break;
+    }
+
+    if (gb)
+    {
+        GL::Push(GL::BindTarget::SHADER_PROGRAM);
+
+        sp->Bind();
+        gb->BindAttachmentsForReading(sp);
+        sp->SetTexture2D(GBuffer::GetColorsTexName(),
+                         gb->GetDrawColorTexture());
+
+        GL::Pop(GL::BindTarget::SHADER_PROGRAM);
+    }
+
+    GameObject::Render(renderPass, renderChildren);
+}
+
 void UISceneImage::SetSceneImageCamera(Camera *sceneCam)
 {
-    Texture2D *camTexture = nullptr;
     p_currentCamera = sceneCam;
+
     if (sceneCam)
     {
-        GBuffer *gbuffer =  sceneCam->GetGBuffer();
-        switch (GetRenderMode())
-        {
-            case RenderMode::Color:
-            camTexture = gbuffer->GetAttachmentTexture(GBuffer::AttColor);
-            break;
+        GBuffer *camGBuffer = sceneCam->GetGBuffer();
 
-            case RenderMode::Normal:
-            camTexture = gbuffer->GetAttachmentTexture(GBuffer::AttNormal);
-            break;
+        ShaderProgram *sp = p_sceneImg->GetMaterial()->GetShaderProgram();
 
-            case RenderMode::Diffuse:
-            camTexture = gbuffer->GetAttachmentTexture(GBuffer::AttDiffuse);
-            break;
+        GL::Push(GL::BindTarget::SHADER_PROGRAM);
 
-            case RenderMode::Depth:
-            camTexture = gbuffer->GetAttachmentTexture(GBuffer::AttDepthStencil);
-            break;
+        sp->Bind();
+        sp->SetInt("B_SceneRenderMode", SCAST<int>(GetRenderMode()), false);
+        camGBuffer->BindAttachmentsForReading(sp);
 
-            case RenderMode::Selection:
-            {
-                SelectionFramebuffer *sfb = sceneCam->GetSelectionFramebuffer();
-                camTexture = sfb->GetAttachmentTexture(SelectionFramebuffer::AttColor);
-            }
-            break;
-        }
+        GL::Pop(GL::BindTarget::SHADER_PROGRAM);
     }
-    p_sceneImg->SetImageTexture(camTexture);
-
-    if (camTexture) { camTexture->SetWrapMode(GL::WrapMode::Repeat); }
-    p_sceneImg->SetTint(camTexture ? Color::White : Color::Black);
 }
 
 void UISceneImage::SetRenderMode(UISceneImage::RenderMode renderMode)
@@ -101,13 +134,18 @@ void UISceneImage::SetRenderMode(UISceneImage::RenderMode renderMode)
     if (renderMode != GetRenderMode())
     {
         m_renderMode = renderMode;
-        SetSceneImageCamera( p_currentCamera );
+        SetSceneImageCamera(GetCamera());
     }
 }
 
 void UISceneImage::SetShowDebugStats(bool showDebugStats)
 {
-    p_sceneDebugStats->SetVisible( showDebugStats );
+    p_sceneDebugStats->SetVisible(showDebugStats);
+}
+
+Camera *UISceneImage::GetCamera() const
+{
+    return p_currentCamera;
 }
 
 UISceneImage::RenderMode UISceneImage::GetRenderMode() const
@@ -115,12 +153,18 @@ UISceneImage::RenderMode UISceneImage::GetRenderMode() const
     return m_renderMode;
 }
 
+UISceneImage::UISceneImageRenderer *UISceneImage::GetSceneImageRenderer() const
+{
+    return p_sceneImg;
+}
+
 void UISceneImage::UISceneImageRenderer::OnRender()
 {
-    const bool wasBlendEnabled = GL::IsEnabledi(GL::Test::Blend, 0);
-    GL::Disablei(GL::Test::Blend, 0);
+    GL::Push(GL::Pushable::BLEND_STATES);
+
+    GL::Disable(GL::Enablable::BLEND);
 
     UIImageRenderer::OnRender();
 
-    GL::SetEnabledi(GL::Test::Blend, 0, wasBlendEnabled);
+    GL::Pop(GL::Pushable::BLEND_STATES);
 }

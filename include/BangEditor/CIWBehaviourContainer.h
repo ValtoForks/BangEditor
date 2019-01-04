@@ -1,19 +1,28 @@
 #ifndef CIWBEHAVIOURCONTAINER_H
 #define CIWBEHAVIOURCONTAINER_H
 
-#include "Bang/IValueChangedListener.h"
-
+#include "Bang/BangDefines.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/ReflectVariable.h"
+#include "Bang/String.h"
+#include "Bang/Time.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/ComponentInspectorWidget.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UIInputFile;
-FORWARD class BehaviourContainer;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class BehaviourContainer;
+class ReflectStruct;
+class IEventsValueChanged;
+template <class>
+class EventEmitter;
+class UIButton;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class UIInputFile;
+using namespace Bang;
+namespace BangEditor
+{
+class UIInputFile;
 
 class CIWBehaviourContainer : public ComponentInspectorWidget
 {
@@ -28,17 +37,23 @@ public:
 
 private:
     UIInputFile *p_sourceInputFile = nullptr;
+    UIButton *p_resetValuesButton = nullptr;
 
     CIWBehaviourContainer();
-    virtual ~CIWBehaviourContainer();
+    virtual ~CIWBehaviourContainer() override;
 
-    // IValueChangedListener
-    void OnValueChanged(Object *object) override;
+    void UpdateFromReflection(const ReflectStruct &reflectStruct);
+    void UpdateModifiedInitializationMetaFromWidget(GameObject *widget);
+
+    // ComponentInspectorWidget
+    void OnComponentSet() override;
+    ReflectStruct GetReflectableReflectStruct() const override;
+
+    // ComponentInspectorWidget
+    void OnValueChangedCIW(EventEmitter<IEventsValueChanged> *object) override;
 
     friend class ComponentInspectorWidgetFactory;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // CIWBEHAVIOURCONTAINER_H
-
+#endif  // CIWBEHAVIOURCONTAINER_H

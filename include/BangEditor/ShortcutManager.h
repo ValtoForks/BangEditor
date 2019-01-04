@@ -1,40 +1,22 @@
 #ifndef SHORTCUTMANAGER_H
 #define SHORTCUTMANAGER_H
 
-#include "Bang/Set.h"
-#include "Bang/List.h"
+#include <functional>
+#include <unordered_set>
+
+#include "Bang/Array.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Input.h"
+#include "Bang/List.h"
+#include "Bang/Map.h"
 #include "Bang/String.h"
-
+#include "Bang/USet.h"
 #include "BangEditor/BangEditor.h"
+#include "BangEditor/Shortcut.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-class Shortcut
+using namespace Bang;
+namespace BangEditor
 {
-public:
-    Shortcut(Key firstKey, const String &name = "");
-    Shortcut(Key firstKey, Key secondKey, const String &name = "");
-    Shortcut(Key firstKey, Key secondKey, Key thirdKey, const String &name = "");
-    Shortcut(const Array<Key> &keys, const String &name = "");
-
-    bool IsTriggered(const Array<Key> &keys) const;
-
-    const Array<Key>& GetKeys() const;
-    const String& GetName() const;
-
-    bool operator==(const Shortcut &rhs) const;
-    bool operator<(const Shortcut &rhs) const;
-
-private:
-    String m_name;
-    Array<Key> m_keys;
-};
-
-
-
-
 class ShortcutManager
 {
 public:
@@ -44,9 +26,7 @@ public:
                                  ShortcutCallback callback);
 
 private:
-    Set<Shortcut> m_shortcutsTriggeredWithCurrentKeys;
     Map<Shortcut, Array<ShortcutCallback>> m_shortcuts;
-    Array<Key> m_pressedKeys;
 
     ShortcutManager();
     virtual ~ShortcutManager();
@@ -57,8 +37,6 @@ private:
 
     friend class EditorWindow;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // SHORTCUTMANAGER_H
-
+#endif  // SHORTCUTMANAGER_H

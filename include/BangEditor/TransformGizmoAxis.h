@@ -2,24 +2,29 @@
 #define TRANSFORMGIZMOAXIS_H
 
 #include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/GameObject.h"
-
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/SelectionGizmo.h"
 
-NAMESPACE_BANG_BEGIN
-FORWARD class LineRenderer;
-FORWARD class MeshRenderer;
-NAMESPACE_BANG_END
+namespace Bang
+{
+class Color;
+class LineRenderer;
+class MeshRenderer;
+class Object;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class TransformGizmoAxis : public SelectionGizmo
 {
 public:
     // GameObject
     void Update() override;
 
+    bool IsLocal() const;
     virtual void SetAxis(Axis3DExt axis);
     virtual void SetColor(const Color &color) = 0;
 
@@ -29,7 +34,9 @@ public:
 
 protected:
     TransformGizmoAxis();
-    virtual ~TransformGizmoAxis();
+    virtual ~TransformGizmoAxis() override;
+
+    virtual bool ApplyAlignmentAlpha() const;
 
 private:
     using SelectionState = SelectionGizmo::SelectionState;
@@ -38,11 +45,9 @@ private:
 
     void SetColor(SelectionState state);
 
-    // IObjectListener
-    void OnDisabled() override;
+    // IEventsObject
+    void OnDisabled(Object *object) override;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // TRANSFORMGIZMOAXIS_H
-
+#endif  // TRANSFORMGIZMOAXIS_H

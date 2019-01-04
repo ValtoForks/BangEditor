@@ -1,18 +1,16 @@
 #include "BangEditor/PrefabExplorerItem.h"
 
-#include "Bang/Mesh.h"
-#include "Bang/Scene.h"
-#include "Bang/Prefab.h"
-#include "Bang/Material.h"
-#include "Bang/Resources.h"
+#include "Bang/AssetHandle.h"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
 #include "Bang/GameObject.h"
-#include "Bang/MeshRenderer.h"
-#include "Bang/GameObjectFactory.h"
-
+#include "Bang/Prefab.h"
+#include "Bang/Scene.h"
 #include "BangEditor/EditorSceneManager.h"
+#include "BangEditor/MenuItem.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 PrefabExplorerItem::PrefabExplorerItem()
 {
@@ -27,18 +25,16 @@ void PrefabExplorerItem::OnCreateContextMenu(MenuItem *menuRootItem)
     ExplorerItem::OnCreateContextMenu(menuRootItem);
 
     MenuItem *createGo = menuRootItem->AddItem("Create GameObject from prefab");
-    createGo->SetSelectedCallback([this](MenuItem*)
-    {
+    createGo->SetSelectedCallback([this](MenuItem *) {
         Scene *openScene = EditorSceneManager::GetOpenScene();
         if (openScene)
         {
-            RH<Prefab> prefabRH = Resources::Load<Prefab>(GetPath());
-            if (prefabRH)
+            AH<Prefab> prefabAH = Assets::Load<Prefab>(GetPath());
+            if (prefabAH)
             {
-                GameObject *gameObject = prefabRH.Get()->Instantiate();
+                GameObject *gameObject = prefabAH.Get()->Instantiate();
                 gameObject->SetParent(openScene);
             }
         }
     });
 }
-

@@ -1,63 +1,117 @@
 #include "BangEditor/UIInputFile.h"
 
-#include "Bang/Dialog.h"
-#include "Bang/UILabel.h"
-#include "Bang/UIButton.h"
-#include "Bang/Texture2D.h"
-#include "Bang/UIInputText.h"
-#include "Bang/UITextRenderer.h"
-#include "Bang/UILayoutElement.h"
+#include "Bang/Assets.h"
+#include "Bang/Color.h"
+#include "Bang/GameObject.tcc"
 #include "Bang/GameObjectFactory.h"
+#include "Bang/IEventsDragDrop.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/Paths.h"
+#include "Bang/Stretch.h"
+#include "Bang/Texture2D.h"
+#include "Bang/TextureFactory.h"
+#include "Bang/UIButton.h"
+#include "Bang/UICanvas.h"
+#include "Bang/UIDragDroppable.h"
+#include "Bang/UIFocusable.h"
 #include "Bang/UIHorizontalLayout.h"
-
+#include "Bang/UIImageRenderer.h"
+#include "Bang/UIInputText.h"
+#include "Bang/UILayoutElement.h"
+#include "Bang/UITextRenderer.h"
 #include "BangEditor/EditorDialog.h"
-#include "BangEditor/EditorIconManager.h"
+#include "BangEditor/EditorTextureFactory.h"
+#include "BangEditor/Explorer.h"
+#include "BangEditor/ExplorerItem.h"
+#include "BangEditor/Inspector.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+namespace Bang
+{
+class Texture2D;
+}
+
+using namespace Bang;
+using namespace BangEditor;
 
 UIInputFile::UIInputFile()
 {
     SetName("UIInputFile");
-    GameObjectFactory::CreateUIGameObjectInto(this);
-
-    UILayoutElement *le = AddComponent<UILayoutElement>();
-    le->SetFlexibleWidth( 1.0f );
-
-    UIHorizontalLayout *hl = AddComponent<UIHorizontalLayout>();
-    hl->SetChildrenVerticalStretch(Stretch::Full);
-    hl->SetSpacing(5);
-
-    p_pathInputText = GameObjectFactory::CreateUIInputText();
-    p_pathInputText->SetBlocked(true);
-    p_pathInputText->GetText()->SetTextSize(12);
-    UILayoutElement *pathInputTextLE = p_pathInputText->GetGameObject()->
-                                       AddComponent<UILayoutElement>();
-    pathInputTextLE->SetFlexibleSize( Vector2(9999.9f) );
-    pathInputTextLE->SetLayoutPriority(1);
-    SetPath(Path::Empty);
-
-    p_searchButton = GameObjectFactory::CreateUIButton();
-    p_searchButton->GetText()->SetContent("");
-    p_searchButton->SetIcon( EditorIconManager::GetLensLittleIcon().Get(),
-                             Vector2i(10, 14) );
-    p_searchButton->GetFocusable()->AddClickedCallback([this](IFocusable*)
-    {
-        Path openPath;
-        bool accepted;
-        EditorDialog::GetAsset("Get Asset...",
-                               GetExtensions(),
-                               &openPath,
-                               &accepted);
-        if (accepted) { SetPath(openPath); }
-    });
-
-    p_pathInputText->GetGameObject()->SetParent(this);
-    p_searchButton->GetGameObject()->SetParent(this);
+    SetPath(Path::Empty());
 }
 
 UIInputFile::~UIInputFile()
 {
+}
+
+bool UIInputFile::CanDoZoom() const
+{
+    return HasExistingPath();
+}
+
+bool UIInputFile::HasExistingPath() const
+{
+    return (GetPath().IsFile() || Assets::IsEmbeddedAsset(GetPath()));
+}
+
+AH<Texture2D> UIInputFile::GetPreviewTextureFromPath(const Path &path)
+{
+    return AH<Texture2D>(EditorTextureFactory::GetIconForPath(path));
+}
+
+bool UIInputFile::AcceptsDrag(EventEmitter<IEventsDragDrop> *dd_) const
+{
+    if (UIDragDroppable *dragDroppable = DCAST<UIDragDroppable *>(dd_))
+    {
+        if (ExplorerItem *expItem =
+                DCAST<ExplorerItem *>(dragDroppable->GetGameObject()))
+        {
+            Path draggedPath = expItem->GetPath();
+            return draggedPath.HasExtension(GetExtensions());
+        }
+    }
+    return false;
+}
+
+void UIInputFile::OnDropped(EventEmitter<IEventsDragDrop> *dd_)
+{
+    if (UIDragDroppable *dragDroppable = DCAST<UIDragDroppable *>(dd_))
+    {
+        if (ExplorerItem *expItem =
+                DCAST<ExplorerItem *>(dragDroppable->GetGameObject()))
+        {
+            Path draggedPath = expItem->GetPath();
+            bool acceptedFileType = draggedPath.HasExtension(GetExtensions());
+            if (acceptedFileType)
+            {
+                SetPath(draggedPath);
+            }
+        }
+    }
+}
+
+void UIInputFile::OnSearchButtonClicked()
+{
+    Path openPath;
+    bool accepted;
+    EditorDialog::GetAsset(
+        "Get Asset...", GetExtensions(), &openPath, &accepted);
+    if (accepted)
+    {
+        SetPath(openPath);
+    }
+}
+
+void UIInputFile::OnOpenButtonClicked()
+{
+    if (!Paths::IsEnginePath(GetPath()))
+    {
+        Explorer::GetInstance()->SelectPath(GetPath(), true);
+    }
+    else
+    {
+        // Dont select in explorer, but just show in inspector
+        Inspector::GetActive()->ShowPath(GetPath());
+    }
 }
 
 void UIInputFile::SetPath(const Path &path)
@@ -66,12 +120,32 @@ void UIInputFile::SetPath(const Path &path)
     {
         m_path = path;
 
-        String textContent = GetPath().IsFile() ? GetPath().GetNameExt() : "None";
+        bool pathIsGood = (GetPath().IsFile() || Assets::IsEmbeddedAsset(path));
+
+        String textContent = "None";
+        if (pathIsGood)
+        {
+            textContent = GetPath().GetNameExt();
+            if (Assets::IsEmbeddedAsset(GetPath()))
+            {
+                textContent.Prepend(GetPath().GetDirectory().GetNameExt() +
+                                    "/");
+            }
+        }
         GetInputText()->GetText()->SetContent(textContent);
 
-        EventEmitter<IValueChangedListener>::PropagateToListeners(
-                &IValueChangedListener::OnValueChanged, this);
+        GetOpenButton()->SetBlocked(!pathIsGood);
+
+        EventEmitter<IEventsValueChanged>::PropagateToListeners(
+            &IEventsValueChanged::OnValueChanged, this);
     }
+
+    AH<Texture2D> previewTex;
+    if (HasExistingPath())
+    {
+        previewTex = GetPreviewTextureFromPath(path);
+    }
+    SetPreviewIcon(previewTex.Get());
 }
 
 void UIInputFile::SetExtensions(const Array<String> &extensions)
@@ -84,14 +158,7 @@ Path UIInputFile::GetPath() const
     return m_path;
 }
 
-UIInputText *UIInputFile::GetInputText() const
-{
-    return p_pathInputText;
-}
-
 const Array<String> &UIInputFile::GetExtensions() const
 {
     return m_extensions;
 }
-
-

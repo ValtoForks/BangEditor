@@ -2,23 +2,26 @@
 #define EDITSCENEGAMEOBJECTS_H
 
 #include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
+#include "BangEditor/BangEditor.h"
+#include "BangEditor/GizmosManager.h"
 
-#include "BangEditor/SelectionGizmosManager.h"
+namespace Bang
+{
+class Scene;
+}
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Scene;
-FORWARD NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class EditorCamera;
-FORWARD class SelectionGizmosManager;
+using namespace Bang;
+namespace BangEditor
+{
+class EditorCamera;
+class EditorFloor;
+class GizmosManager;
 
 class EditSceneGameObjects
 {
 public:
-	EditSceneGameObjects();
+    EditSceneGameObjects();
     virtual ~EditSceneGameObjects();
 
     void Update();
@@ -26,20 +29,19 @@ public:
     void OnBeginRender(Scene *scene);
     void OnEndRender(Scene *scene);
 
+    EditorFloor *GetEditorFloor() const;
     EditorCamera *GetEditorCamera() const;
-    SelectionGizmosManager *GetSelectionGizmosManager() const;
+    GizmosManager *GetGizmosManager() const;
 
     static EditSceneGameObjects *GetInstance();
 
 private:
+    EditorFloor *m_editorFloor = nullptr;
     EditorCamera *m_editorCamera = nullptr;
-    SelectionGizmosManager *m_selectionGizmosManager = nullptr;
-
+    GizmosManager *m_gizmosManager = nullptr;
 
     friend class EditorCamera;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITSCENEGAMEOBJECTS_H
-
+#endif  // EDITSCENEGAMEOBJECTS_H

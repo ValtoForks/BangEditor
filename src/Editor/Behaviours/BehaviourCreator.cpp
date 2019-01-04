@@ -1,40 +1,53 @@
 #include "BangEditor/BehaviourCreator.h"
 
-#include "Bang/File.h"
-#include "Bang/Debug.h"
+#include "Bang/Assert.h"
 #include "Bang/Extensions.h"
-
+#include "Bang/File.h"
+#include "Bang/MetaFilesManager.h"
 #include "BangEditor/EditorPaths.h"
+#include "BangEditor/QtProjectManager.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
-Path BehaviourCreator::GetNewBehaviourHeaderFilepath(const Path &dirPath,
-                                                     const String &behaviourName)
+Path BehaviourCreator::GetNewBehaviourHeaderFilepath(
+    const Path &dirPath,
+    const String &behaviourName)
 {
     return dirPath.Append(behaviourName)
-             .AppendExtension(Extensions::GetDefaultBehaviourHeaderExtension());
+        .AppendExtension(Extensions::GetDefaultBehaviourHeaderExtension());
 }
 
-Path BehaviourCreator::GetNewBehaviourSourceFilepath(const Path &dirPath,
-                                                     const String &behaviourName)
+Path BehaviourCreator::GetNewBehaviourSourceFilepath(
+    const Path &dirPath,
+    const String &behaviourName)
 {
     return dirPath.Append(behaviourName)
-             .AppendExtension(Extensions::GetDefaultBehaviourSourceExtension());
+        .AppendExtension(Extensions::GetDefaultBehaviourSourceExtension());
 }
 
 bool BehaviourCreator::CanCreateNewBehaviour(const Path &dirPath,
                                              const String &behaviourName)
 {
-    if (!dirPath.IsDir()) { return false;  }
+    if (!dirPath.IsDir())
+    {
+        return false;
+    }
 
-    Path headerPath = BehaviourCreator::GetNewBehaviourHeaderFilepath(dirPath,
-                                                               behaviourName);
-    Path sourcePath = BehaviourCreator::GetNewBehaviourSourceFilepath(dirPath,
-                                                               behaviourName);
+    Path headerPath =
+        BehaviourCreator::GetNewBehaviourHeaderFilepath(dirPath, behaviourName);
+    Path sourcePath =
+        BehaviourCreator::GetNewBehaviourSourceFilepath(dirPath, behaviourName);
 
-    if (headerPath.IsFile()) { return false; }
-    if (sourcePath.IsFile()) { return false; }
+    if (headerPath.IsFile())
+    {
+        return false;
+    }
+
+    if (sourcePath.IsFile())
+    {
+        return false;
+    }
 
     return true;
 }
@@ -48,13 +61,20 @@ void BehaviourCreator::CreateNewBehaviour(const Path &dirPath,
     ASSERT(behaviourSourcePath);
     ASSERT(CanCreateNewBehaviour(dirPath, behaviourName));
 
-    Path headerPath = BehaviourCreator::GetNewBehaviourHeaderFilepath(dirPath,
-                                                               behaviourName);
-    Path sourcePath = BehaviourCreator::GetNewBehaviourSourceFilepath(dirPath,
-                                                               behaviourName);
+    Path headerPath =
+        BehaviourCreator::GetNewBehaviourHeaderFilepath(dirPath, behaviourName);
+    Path sourcePath =
+        BehaviourCreator::GetNewBehaviourSourceFilepath(dirPath, behaviourName);
 
-    File::Write(headerPath, BehaviourCreator::GetNewBehaviourHeaderCode(behaviourName));
-    File::Write(sourcePath, BehaviourCreator::GetNewBehaviourSourceCode(behaviourName));
+    File::Write(headerPath,
+                BehaviourCreator::GetNewBehaviourHeaderCode(behaviourName));
+    File::Write(sourcePath,
+                BehaviourCreator::GetNewBehaviourSourceCode(behaviourName));
+
+    MetaFilesManager::CreateMetaFileIfMissing(headerPath);
+    MetaFilesManager::CreateMetaFileIfMissing(sourcePath);
+
+    QtProjectManager::CreateQtProjectFile();
 
     *behaviourHeaderPath = headerPath;
     *behaviourSourcePath = sourcePath;
@@ -62,11 +82,11 @@ void BehaviourCreator::CreateNewBehaviour(const Path &dirPath,
 
 String BehaviourCreator::GetNewBehaviourHeaderCode(const String &behaviourName)
 {
-    Path templatePath = EditorPaths::GetEditorAssetsDir().
-                                     Append("Templates").
-                                     Append("BehaviourTemplates").
-                                     Append("Header").
-                                     AppendExtension("template");
+    Path templatePath = EditorPaths::GetEditorAssetsDir()
+                            .Append("Templates")
+                            .Append("BehaviourTemplates")
+                            .Append("Header")
+                            .AppendExtension("template");
 
     String code = File::GetContents(templatePath);
     code = code.Replace("BEHAVIOUR_NAME", behaviourName);
@@ -76,11 +96,11 @@ String BehaviourCreator::GetNewBehaviourHeaderCode(const String &behaviourName)
 
 String BehaviourCreator::GetNewBehaviourSourceCode(const String &behaviourName)
 {
-    Path templatePath = EditorPaths::GetEditorAssetsDir().
-                                     Append("Templates").
-                                     Append("BehaviourTemplates").
-                                     Append("Source").
-                                     AppendExtension("template");
+    Path templatePath = EditorPaths::GetEditorAssetsDir()
+                            .Append("Templates")
+                            .Append("BehaviourTemplates")
+                            .Append("Source")
+                            .AppendExtension("template");
 
     String code = File::GetContents(templatePath);
     code = code.Replace("BEHAVIOUR_NAME", behaviourName);

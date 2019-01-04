@@ -1,34 +1,34 @@
 #ifndef SCENEPLAYER_H
 #define SCENEPLAYER_H
 
-#include "Bang/Bang.h"
-#include "Bang/Path.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IEventListener.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/Path.h"
+#include "Bang/Quaternion.h"
+#include "Bang/Vector3.h"
 #include "BangEditor/BangEditor.h"
+#include "BangEditor/IEventsScenePlayer.h"
+#include "BangEditor/PlayState.h"
 #include "BangEditor/ShortcutManager.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class Scene;
-FORWARD NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-enum class PlayState { JustBeforePlaying, Playing, Paused, Editing };
-
-class IScenePlayerListener : public virtual IEventListener
+namespace Bang
 {
-    EVENTLISTENER(IScenePlayerListener)
+class Scene;
+}
 
-public:
-    virtual void OnPlayStateChanged(PlayState previousPlayState,
-                                    PlayState newPlayState)
-    { (void)(previousPlayState); (void)(newPlayState); }
-};
+using namespace Bang;
+namespace BangEditor
+{
+class IEventsScenePlayer;
+class Shortcut;
 
-class ScenePlayer : public EventEmitter<IScenePlayerListener>
+class ScenePlayer : public EventEmitter<IEventsScenePlayer>
 {
 public:
     static void PlayScene();
@@ -39,17 +39,19 @@ public:
     static void SetPlayState(PlayState playState);
     static PlayState GetPlayState();
 
+    Scene *GetEditOpenScene() const;
+    Scene *GetPlayOpenScene() const;
     static ScenePlayer *GetInstance();
 
 private:
-    PlayState m_currentPlayState;
+    PlayState m_currentPlayState = PlayState::EDITING;
 
     bool m_steppingFrame = false;
     Scene *p_editOpenScene = nullptr;
     Scene *p_playOpenScene = nullptr;
 
     ScenePlayer();
-    virtual ~ScenePlayer();
+    virtual ~ScenePlayer() override;
 
     void Update();
 
@@ -57,8 +59,6 @@ private:
 
     friend class EditorScene;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // SCENEPLAYER_H
-
+#endif  // SCENEPLAYER_H

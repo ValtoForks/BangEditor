@@ -1,21 +1,33 @@
 #ifndef CIWUIIMAGERENDERER_H
 #define CIWUIIMAGERENDERER_H
 
-#include "Bang/IValueChangedListener.h"
-
+#include "Bang/BangDefines.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/String.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/ComponentInspectorWidget.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
+namespace Bang
+{
+class IEventsValueChanged;
+class UIImageRenderer;
+template <class>
+class EventEmitter;
+}
 
-FORWARD class UIInputFile;
-FORWARD class UIInputColor;
+using namespace Bang;
+namespace BangEditor
+{
+class UIInputColor;
+class UIInputFile;
 
 class CIWUIImageRenderer : public ComponentInspectorWidget
 {
     GAMEOBJECT_EDITOR(CIWUIImageRenderer);
 
 public:
+    CIWUIImageRenderer();
+
     // InspectorWidget
     virtual void InitInnerWidgets() override;
     virtual void UpdateFromReference() override;
@@ -23,18 +35,15 @@ public:
 protected:
     UIImageRenderer *GetUIImageRenderer() const;
 
-    // IValueChangedListener
-    void OnValueChanged(Object *object) override;
+    // ComponentInspectorWidget
+    void OnValueChangedCIW(EventEmitter<IEventsValueChanged> *object) override;
 
 private:
-    UIInputFile *p_imageInput = nullptr;
     UIInputColor *p_tintInput = nullptr;
+    UIInputFile *p_imageInput = nullptr;
 
-	CIWUIImageRenderer();
-	virtual ~CIWUIImageRenderer();
+    virtual ~CIWUIImageRenderer() override;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // CIWUIIMAGERENDERER_H
-
+#endif  // CIWUIIMAGERENDERER_H

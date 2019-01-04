@@ -1,72 +1,73 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include <vector>
+
+#include "Bang/Array.tcc"
 #include "Bang/Bang.h"
-#include "Bang/Object.h"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
 #include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/IEventsSceneManager.h"
+#include "Bang/Object.h"
 #include "Bang/SceneManager.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IEventListener.h"
-#include "Bang/IDestroyListener.h"
-
 #include "BangEditor/BangEditor.h"
+#include "BangEditor/IEventsEditor.h"
 
-NAMESPACE_BANG_BEGIN
-FORWARD class Scene;
-NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class EditorSettings;
-
-class IEditorListener : public virtual IEventListener
+namespace Bang
 {
-    EVENTLISTENER(IEditorListener)
+class GameObject;
+class IEventsDestroy;
+class IEventsSceneManager;
+class Path;
+class Scene;
+}  // namespace Bang
 
-public:
-    virtual void OnGameObjectSelected(GameObject *selectedGameObject) { }
-    virtual void OnExplorerPathSelected(const Path &selectedPath) { }
-};
+using namespace Bang;
+namespace BangEditor
+{
+class IEventsEditor;
 
-class Editor : public EventEmitter<IEditorListener>,
-               public ISceneManagerListener,
-               public IDestroyListener
+class Editor : public EventEmitter<IEventsEditor>,
+               public EventListener<IEventsSceneManager>,
+               public EventListener<IEventsDestroy>
 {
 public:
     static GameObject *GetSelectedGameObject();
-    static void SelectGameObject(GameObject *selectedGameObject);
+    static void SelectGameObject(GameObject *selectedGameObject,
+                                 bool registerUndo = true);
 
     static bool IsEditingScene();
 
-    static Editor* GetInstance();
+    static Editor *GetInstance();
 
 private:
     GameObject *p_selectedGameObject = nullptr;
-    EditorSettings *m_editorSettings = nullptr;
 
     Editor();
-    virtual ~Editor();
+    virtual ~Editor() override;
 
     void Init();
-    void SelectGameObject_(GameObject *selectedGameObject);
 
     static void OnPathSelected(const Path &path);
 
-    EditorSettings* GetEditorSettings() const;
+    void SelectGameObject_(GameObject *selectedGameObject, bool registerUndo);
 
-    // ISceneManagerListener
+    // IEventsSceneManager
     void OnSceneLoaded(Scene *scene, const Path &sceneFilepath) override;
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
     friend class Explorer;
-    friend class EditorSettings;
     friend class EditorApplication;
+    friend class UndoRedoGameObjectSelection;
 };
+}  // namespace BangEditor
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITOR_H
-
+#endif  // EDITOR_H

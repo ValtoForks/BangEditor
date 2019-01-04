@@ -1,45 +1,51 @@
-#include "BangEditor/EditorApplication.h"
+#include <ostream>
 
-#include "Bang/Path.h"
+#include "Bang/Application.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Debug.h"
+#include "Bang/Path.h"
 #include "Bang/Paths.h"
-#include "Bang/Scene.h"
+#include "Bang/StreamOperators.h"
 #include "Bang/Window.h"
 #include "Bang/WindowManager.h"
-
-#include "BangEditor/Project.h"
-#include "BangEditor/EditorScene.h"
+#include "Bang/WindowManager.tcc"
+#include "BangEditor/BangEditor.h"
+#include "BangEditor/EditorApplication.h"
+#include "BangEditor/EditorProjectManager.h"
 #include "BangEditor/EditorWindow.h"
-#include "BangEditor/EditorSettings.h"
-#include "BangEditor/ProjectManager.h"
-#include "BangEditor/SceneOpenerSaver.h"
 #include "BangEditor/SelectProjectWindow.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+using namespace Bang;
+using namespace BangEditor;
 
 int main(int argc, char **argv)
 {
     EditorApplication editorApplication;
-    const Path engPath = Paths::GetResolvedPath( Path("" BANG_ENGINE_ROOT) );
-    const Path edtPath = Paths::GetResolvedPath( Path("" BANG_EDITOR_ROOT) );
-    Debug_Log("BangEngineRoot: " << "" BANG_ENGINE_ROOT << " => " << engPath);
-    Debug_Log("BangEditorRoot: " << "" BANG_EDITOR_ROOT << " => " << edtPath);
-    editorApplication.InitEditorApplication(engPath, edtPath);
+    const Path edtPath = Paths::GetResolvedPath(Paths::GetExecutablePath()
+                                                    .GetDirectory()
+                                                    .GetDirectory()
+                                                    .GetDirectory());
+    const Path engPath = Paths::GetResolvedPath(edtPath.Append("Bang"));
+    Debug_Log("BangEngineRoot: " << engPath);
+    Debug_Log("BangEditorRoot: " << edtPath);
+    editorApplication.Init(engPath, edtPath);
 
-    Path projectToBeOpen = Path::Empty;
+    Path projectToBeOpen = Path::Empty();
     if (argc < 2)
     {
         // Select project window
         SelectProjectWindow *selectProjectWindow =
-                             WindowManager::CreateWindow<SelectProjectWindow>();
+            WindowManager::CreateWindow<SelectProjectWindow>();
         Window::SetActive(selectProjectWindow);
         selectProjectWindow->Init();
         editorApplication.MainLoop();
 
         projectToBeOpen = SelectProjectWindow::SelectedProjectPath;
     }
-    else { projectToBeOpen = Path(argv[1]); }
+    else
+    {
+        projectToBeOpen = Path(argv[1]);
+    }
 
     if (projectToBeOpen.IsEmpty())
     {
@@ -53,13 +59,12 @@ int main(int argc, char **argv)
         Application::Exit(1, true);
     }
 
-
     // Main window
     Window *mainWindow = WindowManager::CreateWindow<EditorWindow>();
     Window::SetActive(mainWindow);
     editorApplication.OpenEditorScene();
 
-    ProjectManager::OpenProject(projectToBeOpen);
+    EditorProjectManager::GetInstance()->OpenProject(projectToBeOpen);
 
     return editorApplication.MainLoop();
 }

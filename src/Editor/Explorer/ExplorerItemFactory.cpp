@@ -1,34 +1,41 @@
 #include "BangEditor/ExplorerItemFactory.h"
 
-#include "Bang/Mesh.h"
-#include "Bang/Path.h"
-#include "Bang/Model.h"
-#include "Bang/Resources.h"
+#include "Bang/Array.tcc"
+#include "Bang/AssetHandle.h"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
 #include "Bang/Extensions.h"
 #include "Bang/GameObject.h"
-#include "Bang/ResourceHandle.h"
-
+#include "Bang/GameObject.tcc"
+#include "Bang/Model.h"
+#include "Bang/Path.h"
+#include "Bang/Paths.h"
 #include "BangEditor/ExplorerItem.h"
 #include "BangEditor/ModelExplorerItem.h"
 #include "BangEditor/PrefabExplorerItem.h"
 
-USING_NAMESPACE_BANG
-USING_NAMESPACE_BANG_EDITOR
+namespace Bang
+{
+class String;
+}
+
+using namespace Bang;
+using namespace BangEditor;
 
 ExplorerItem *ExplorerItemFactory::CreateExplorerItem(const Path &path)
 {
     ExplorerItem *explorerItem = nullptr;
     if (path.HasExtension(Extensions::GetModelExtensions()))
     {
-        explorerItem = GameObject::Create<ModelExplorerItem>();
+        explorerItem = new ModelExplorerItem();
     }
     else if (path.HasExtension(Extensions::GetPrefabExtension()))
     {
-        explorerItem = GameObject::Create<PrefabExplorerItem>();
+        explorerItem = new PrefabExplorerItem();
     }
     else
     {
-        explorerItem = GameObject::Create<ExplorerItem>();
+        explorerItem = new ExplorerItem();
     }
 
     explorerItem->SetPath(path);
@@ -36,56 +43,79 @@ ExplorerItem *ExplorerItemFactory::CreateExplorerItem(const Path &path)
     return explorerItem;
 }
 
-List<ExplorerItem *> ExplorerItemFactory::CreateAndGetChildrenExplorerItems(
-                                                const Path &path)
+Array<ExplorerItem *> ExplorerItemFactory::CreateAndGetSubPathsExplorerItems(
+    const Path &path,
+    bool addBackItem,
+    bool recursive)
 {
-    List<ExplorerItem*> children;
+    Array<ExplorerItem *> expItems;
+
+    if (addBackItem)
+    {
+        Path prevDirPath = path.GetDirectory();
+        ExplorerItem *prevDirExpItem =
+            ExplorerItemFactory::CreateExplorerItem(prevDirPath);
+        prevDirExpItem->SetPathString("..");
+        expItems.PushBack(prevDirExpItem);
+    }
 
     if (path.IsDir())
     {
-        List<Path> subPaths = path.GetSubPaths(Path::FindFlag::Simple);
+        Array<Path> subPaths = path.GetSubPaths(FindFlag::SIMPLE);
         Paths::SortPathsByExtension(&subPaths);
         Paths::SortPathsByName(&subPaths);
         for (const Path &subPath : subPaths)
         {
             ExplorerItem *childExpItem =
-                            ExplorerItemFactory::CreateExplorerItem(subPath);
-            children.PushBack(childExpItem);
+                ExplorerItemFactory::CreateExplorerItem(subPath);
+            expItems.PushBack(childExpItem);
+
+            if (recursive)
+            {
+                expItems.PushBack(CreateAndGetSubPathsExplorerItems(
+                    subPath, false, recursive));
+            }
         }
     }
     else if (path.IsFile())
     {
         if (path.HasExtension(Extensions::GetModelExtensions()))
         {
-            RH<Model> model = Resources::Load<Model>(path);
-            Resources::SetPermanent(model.Get(), true);
+            AH<Model> model = Assets::Load<Model>(path);
 
-            for (const String& meshName : model.Get()->GetMeshesNames())
+            for (const String &meshName : model.Get()->GetMeshesNames())
             {
-                Path meshPath = path.Append(meshName).AppendExtension("bmesh");
+                Path meshPath = path.Append(meshName);
                 ExplorerItem *meshExplorerItem =
-                        ExplorerItemFactory::CreateExplorerItem(meshPath);
-                children.PushBack( meshExplorerItem );
+                    ExplorerItemFactory::CreateExplorerItem(meshPath);
+                expItems.PushBack(meshExplorerItem);
             }
 
-            for (const String& materialName : model.Get()->GetMaterialsNames())
+            for (const String &materialName : model.Get()->GetMaterialsNames())
             {
-                Path materialPath = path.Append(materialName).
-                        AppendExtension(Extensions::GetMaterialExtension());
+                Path materialPath = path.Append(materialName);
                 ExplorerItem *materialExplorerItem =
-                        ExplorerItemFactory::CreateExplorerItem(materialPath);
-                children.PushBack( materialExplorerItem );
+                    ExplorerItemFactory::CreateExplorerItem(materialPath);
+                expItems.PushBack(materialExplorerItem);
+            }
+
+            for (const String &animationName :
+                 model.Get()->GetAnimationsNames())
+            {
+                Path animationPath = path.Append(animationName);
+                ExplorerItem *animationExplorerItem =
+                    ExplorerItemFactory::CreateExplorerItem(animationPath);
+                expItems.PushBack(animationExplorerItem);
             }
         }
     }
 
-    return children;
+    return expItems;
 }
 
-bool ExplorerItemFactory::CanHaveChildren(const Path &path)
+bool ExplorerItemFactory::CanHaveSubpaths(const Path &path)
 {
-    return path.IsDir() ||
-           path.HasExtension(Extensions::GetModelExtensions());
+    return path.IsDir() || path.HasExtension(Extensions::GetModelExtensions());
 }
 
 ExplorerItemFactory::ExplorerItemFactory()
@@ -95,4 +125,3 @@ ExplorerItemFactory::ExplorerItemFactory()
 ExplorerItemFactory::~ExplorerItemFactory()
 {
 }
-

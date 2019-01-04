@@ -1,10 +1,14 @@
+#include "Bang/All.h"
 #include "Bang/Behaviour.h"
 
-USING_NAMESPACE_BANG
+#include ".BEHAVIOUR_NAME.refl.h"
 
+using namespace Bang;
+
+BANG_CLASS(BEHAVIOUR_NAME)
 class BEHAVIOUR_NAME : public Behaviour
 {
-    COMPONENT(BEHAVIOUR_NAME);
+    COMPONENT_WITHOUT_CLASS_ID(BEHAVIOUR_NAME);
 
 public:
     BEHAVIOUR_NAME() = default;
@@ -12,6 +16,12 @@ public:
 
     void OnStart() override;
     void OnUpdate() override;
+
+private:
+    BANG_VARIABLE(RotationSpeed)
+    float m_rotationSpeed = 6.0f;
+
+    BANG_BEHAVIOUR_DEFINITIONS(BEHAVIOUR_NAME)
 };
 
 BANG_BEHAVIOUR_CLASS(BEHAVIOUR_NAME);

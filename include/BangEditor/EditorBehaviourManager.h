@@ -2,44 +2,57 @@
 #define EDITORBEHAVIOURMANAGER_H
 
 #include <queue>
+#include <vector>
 
-#include "Bang/Map.h"
-#include "Bang/Path.h"
-#include "Bang/Mutex.h"
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/BehaviourManager.h"
 #include "Bang/BinType.h"
 #include "Bang/Compiler.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/FileTracker.h"
+#include "Bang/IEventsFileTracker.h"
+#include "Bang/Map.h"
+#include "Bang/Mutex.h"
+#include "Bang/Path.h"
+#include "Bang/String.h"
+#include "Bang/Thread.h"
 #include "Bang/ThreadPool.h"
-#include "Bang/BehaviourManager.h"
+#include "Bang/USet.h"
+#include "BangEditor/BangEditor.h"
 
-#include "BangEditor/BehaviourTracker.h"
+namespace Bang
+{
+class Behaviour;
+class Library;
+class IEventsFileTracker;
+}  // namespace Bang
 
-NAMESPACE_BANG_BEGIN
-FORWARD class Library;
-FORWARD class Behaviour;
-NAMESPACE_BANG_END
-
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-class EditorBehaviourManager : public BehaviourManager
+using namespace Bang;
+namespace BangEditor
+{
+class EditorBehaviourManager : public BehaviourManager,
+                               public EventListener<IEventsFileTracker>
 {
 public:
     EditorBehaviourManager();
-    virtual ~EditorBehaviourManager();
+    virtual ~EditorBehaviourManager() override;
 
     void Update() override;
 
     void WaitForAsyncCompileJobs();
     bool PrepareBehavioursLibrary();
-    bool IsCompiled(const Path& behaviourFilepath) const;
-    bool IsCompiledWithError(const Path& behaviourFilepath) const;
-    bool IsCompiledSuccessfully(const Path& behaviourFilepath) const;
-    bool IsBeingCompiled(const Path& behaviourFilepath) const;
+    bool IsCompiled(const Path &behaviourFilepath) const;
+    bool IsCompiledWithError(const Path &behaviourFilepath) const;
+    bool IsCompiledSuccessfully(const Path &behaviourFilepath) const;
+    bool IsBeingCompiled(const Path &behaviourFilepath) const;
     bool AreAllBehavioursCompiled() const;
     bool IsSomeBehaviourBeingCompiled() const;
     bool AreAllBehavioursCompiledSuccessfully() const;
     bool IsBehavioursLibraryReady() const;
-    static Behaviour* CreateBehaviourInstance(const String &behaviourName);
+    static Behaviour *CreateBehaviourInstance(const String &behaviourName);
     static bool DeleteBehaviourInstance(const String &behaviourName,
                                         Behaviour *behaviour);
 
@@ -49,56 +62,57 @@ public:
 
 private:
     ThreadPool m_compileThreadPool;
-    BehaviourTracker m_behaviourTracker;
 
-    Set<Path> m_compiledBehaviours;
-    Set<Path> m_behavioursBeingCompiled;
-    Set<Path> m_successfullyCompiledBehaviours;
+    USet<Path> m_compiledBehaviours;
+    USet<Path> m_modifiedBehaviourPaths;
+    USet<Path> m_behavioursBeingCompiled;
+    USet<Path> m_successfullyCompiledBehaviours;
 
     mutable Mutex m_mutex;
     std::queue<Compiler::Result> m_compileResults;
 
-    void UpdateCompileInformations();
-
     Compiler::Result CompileBehaviourObject(const Path &behaviourPath);
-    Compiler::Result CompileBehaviourObject(const Path& behaviourFilepath,
-                                            const Path& outputObjectFilepath,
+    Compiler::Result CompileBehaviourObject(const Path &behaviourFilepath,
+                                            const Path &outputObjectFilepath,
                                             BinType binaryType);
     void CompileBehaviourObjectAsync(const Path &behaviourPath);
     void CompileAllProjectBehaviours();
     void MergeIntoBehavioursLibrary();
 
     static Compiler::Result MergeBehaviourObjects(
-                                      const List<Path> &behaviourObjectPaths,
-                                      const Path &outputLibFilepath,
-                                      BinType binaryType);
+        const Array<Path> &behaviourObjectPaths,
+        const Path &outputLibFilepath,
+        BinType binaryType);
 
-    static List<Path> GetCompiledObjectsPaths();
-    static List<Path> GetBehaviourSourcesPaths();
-    static Compiler::Job CreateBaseJob(BinType binaryType);
+    static Array<Path> GetCompiledObjectsPaths();
+    static Array<Path> GetBehaviourSourcesPaths();
+    static Compiler::Job CreateBaseCompileJob(BinType binaryType, bool addLibs);
     static Path GetObjectOutputPath(const Path &inputBehaviourPath);
-    static Compiler::Job CreateCompileBehaviourJob(const Path& behaviourFilepath,
-                                                   const Path& outputObjectFilepath,
-                                                   BinType binaryType);
-    static void RemoveBehaviourLibrariesOf(const String& behaviourName);
-    static void RemoveOrphanBehaviourLibraries();
+    static Compiler::Job CreateCompileBehaviourJob(
+        const Path &behaviourFilepath,
+        const Path &outputObjectFilepath,
+        BinType binaryType);
+    static void RemoveBehaviourLibrariesOf(const String &behaviourName);
+    static void RemoveOrphanBehaviourLibrariesAndObjects();
 
-    Mutex* GetMutex() const;
-    BehaviourTracker *GetBehaviourTracker();
-    const BehaviourTracker *GetBehaviourTracker() const;
+    Mutex *GetMutex() const;
 
     class BehaviourCompileRunnable : public ThreadRunnable
     {
     public:
         EditorBehaviourManager *m_behaviourManager = nullptr;
-        Path m_behaviourPath = Path::Empty;
+        Path m_behaviourPath = Path::Empty();
         void Run() override;
     };
+
+    // IEventsFileTracker
+    void OnPathAdded(const Path &path) override;
+    void OnPathModified(const Path &path) override;
+    void OnPathRemoved(const Path &path) override;
 
     friend class GameBuilder;
     friend class BehaviourCompileRunnable;
 };
+}  // namespace BangEditor
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORBEHAVIOURMANAGER_H
+#endif  // EDITORBEHAVIOURMANAGER_H

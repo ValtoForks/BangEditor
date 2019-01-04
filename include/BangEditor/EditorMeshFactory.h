@@ -2,23 +2,21 @@
 #define EDITORMESHFACTORY_H
 
 #include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
 #include "Bang/MeshFactory.h"
-
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class EditorMeshFactory : public MeshFactory
 {
 private:
     EditorMeshFactory();
-    virtual ~EditorMeshFactory();
+    virtual ~EditorMeshFactory() override;
 
-    friend class EditorResources;
+    friend class EditorAssets;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // EDITORMESHFACTORY_H
-
+#endif  // EDITORMESHFACTORY_H

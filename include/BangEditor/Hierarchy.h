@@ -1,52 +1,82 @@
 #ifndef HIERARCHY_H
 #define HIERARCHY_H
 
-#include "Bang/Map.h"
-#include "Bang/UIList.h"
-#include "Bang/SceneManager.h"
-#include "Bang/IChildrenListener.h"
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsChildren.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsUITree.h"
+#include "Bang/SceneManager.h"
+#include "Bang/String.h"
+#include "Bang/UIList.h"
+#include "Bang/UMap.h"
+#include "BangEditor/BangEditor.h"
 #include "BangEditor/Editor.h"
 #include "BangEditor/HierarchyItem.h"
 #include "BangEditor/ShortcutManager.h"
 
-FORWARD NAMESPACE_BANG_BEGIN
-FORWARD class UITree;
-FORWARD NAMESPACE_BANG_END
+namespace Bang
+{
+class IEventsDestroy;
+class IEventsSceneManager;
+class IEventsUITree;
+class Path;
+class Scene;
+class UIDragDroppable;
+class UIFocusable;
+class UITree;
+template <class>
+class EventEmitter;
+}
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
-FORWARD class HierarchyItem;
+using namespace Bang;
+namespace BangEditor
+{
+class HierarchyItem;
+class IEventsEditor;
+class IEventsHierarchyItem;
+class MenuItem;
+class UIContextMenu;
 
 class Hierarchy : public GameObject,
-                  public IEditorListener,
-                  public IDestroyListener,
-                  public ISceneManagerListener,
-                  public IHierarchyItemListener
+                  public EventListener<IEventsEditor>,
+                  public EventListener<IEventsFocus>,
+                  public EventListener<IEventsSceneManager>,
+                  public EventListener<IEventsHierarchyItem>,
+                  public EventListener<IEventsUITree>,
+                  public EventListener<IEventsDestroy>
 {
     GAMEOBJECT_EDITOR(Hierarchy);
 
 public:
     Hierarchy();
-    virtual ~Hierarchy();
+    virtual ~Hierarchy() override;
 
     void Clear();
 
     bool IsItemCollapsed(HierarchyItem *item) const;
 
+    HierarchyItem *GetItemFromGameObject(GameObject *go) const;
+    GameObject *GetGameObjectFromItem(GOItem *item) const;
+
     // Object
     void Update() override;
 
-    // IChildrenListener
+    // IEventsChildren
     void OnChildAdded(GameObject *parent, GameObject *addedChild) override;
     void OnChildRemoved(GameObject *parent, GameObject *removedChild) override;
 
     // IEditorListener
     void OnGameObjectSelected(GameObject *selectedGameObject) override;
+    void DuplicateSelectedItem();
 
-    // IHierarchyItemListener
-    virtual void OnCreateEmpty(HierarchyItem *item) override;
+    // IEventsHierarchyItem
     virtual void OnRename(HierarchyItem *item) override;
     virtual void OnRemove(HierarchyItem *item) override;
     virtual void OnCopy(HierarchyItem *item) override;
@@ -55,35 +85,50 @@ public:
     virtual void OnDuplicate(HierarchyItem *item) override;
     virtual void OnCreatePrefab(HierarchyItem *item) override;
 
-    // ISceneManagerListener
+    // IEventsUITree
+    virtual void OnItemMoved(GOItem *item,
+                             GOItem *oldParentItem,
+                             int oldIndexInsideParent,
+                             GOItem *newParentItem,
+                             int newIndexInsideParent) override;
+    virtual void OnDropOutside(UIDragDroppable *dropped) override;
+    virtual void OnDropFromOutside(UIDragDroppable *dropped,
+                                   GameObject *newParentItem,
+                                   int newIndexInsideParent) override;
+    virtual bool AcceptDragOrDrop(UIDragDroppable *dd) override;
+
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
+
+    // UIContextMenu
+    void OnCreateContextMenu(MenuItem *menuRootItem);
+
+    // IEventsSceneManager
     void OnSceneLoaded(Scene *scene, const Path &sceneFilepath) override;
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
     static Hierarchy *GetInstance();
 
 private:
-    UITree *p_tree = nullptr;
-    Map<GameObject*, HierarchyItem*> m_gameObjectToItem;
+    UITree *p_uiTree = nullptr;
+    UIContextMenu *p_contextMenu = nullptr;
+    UMap<GameObject *, HierarchyItem *> m_gameObjectToItem;
 
     void TreeSelectionCallback(GOItem *item, UIList::Action action);
     void AddGameObject(GameObject *go);
     void RemoveGameObject(GameObject *go);
+    void RemoveGameObjectItem(HierarchyItem *item);
 
     GOItem *GetSelectedGameObject() const;
     GOItem *GetSelectedItem() const;
-
-    HierarchyItem* GetItemFromGameObject(GameObject *go) const;
-    GameObject* GetGameObjectFromItem(GOItem *item) const;
-
-    static void OnShortcutPressed(const Shortcut &shortcut);
 
     UITree *GetUITree() const;
 
     friend class HierarchyItem;
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // HIERARCHY_H
+#endif  // HIERARCHY_H

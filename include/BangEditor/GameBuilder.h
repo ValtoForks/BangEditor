@@ -1,14 +1,15 @@
 #ifndef GAMEBUILDER_H
 #define GAMEBUILDER_H
 
-#include "Bang/Path.h"
+#include "Bang/BangDefines.h"
 #include "Bang/BinType.h"
-
+#include "Bang/Path.h"
+#include "Bang/String.h"
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class GameBuilder
 {
 public:
@@ -23,12 +24,10 @@ public:
     GameBuilder() = delete;
 
 private:
-    static bool     CompileGameExecutable(BinType binType);
-    static bool     CreateDataDirectory(const Path &executableDir);
-    static bool     CreateBehavioursLibrary(const Path &executableDir,
-                                      BinType binType);
+    static bool CreateDataDirectory(const Path &executableDir);
+    static bool CreateBehavioursLibrary(const Path &executableDir,
+                                        BinType binType);
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // GAMEBUILDER_H
+#endif  // GAMEBUILDER_H

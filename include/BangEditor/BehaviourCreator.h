@@ -1,13 +1,14 @@
 #ifndef BEHAVIOURCREATOR_H
 #define BEHAVIOURCREATOR_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/Path.h"
 #include "Bang/String.h"
 #include "BangEditor/BangEditor.h"
 
-USING_NAMESPACE_BANG
-NAMESPACE_BANG_EDITOR_BEGIN
-
+using namespace Bang;
+namespace BangEditor
+{
 class BehaviourCreator
 {
 public:
@@ -26,10 +27,7 @@ public:
                                    const String &behaviourName,
                                    Path *behaviourHeaderPath,
                                    Path *behaviourSourcePath);
-
 };
+}
 
-NAMESPACE_BANG_EDITOR_END
-
-#endif // BEHAVIOURCREATOR_H
-
+#endif  // BEHAVIOURCREATOR_H
